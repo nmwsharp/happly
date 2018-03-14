@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -232,6 +233,7 @@ bool startsWith(std::string input, std::string query) { return input.compare(0, 
 // Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
 namespace {
 
+// A pointer for the smaller equivalent of a type (eg. when a double is requested, a float works too)
 template <class T>
 struct HalfSize {
   bool isSmaller = false;
@@ -273,7 +275,8 @@ struct HalfSize<double> {
   bool isSmaller = true;
   typedef float type;
 };
-};
+}
+
 
 class PLYData {
 
@@ -290,7 +293,8 @@ public:
 
     if (verbose) cout << "PLY: Reading ply file: " << filename << endl;
 
-    std::ifstream inStream(filename);
+    // Open a file in binary always, in case it turns out to have binary data.
+    std::ifstream inStream(filename, std::ios::binary); 
     if (inStream.fail()) {
       throw std::runtime_error("Could not open file " + filename);
     }
@@ -454,6 +458,15 @@ public:
     return getDataFromPropertyRecursive<T, T>(prop.get());
   }
 
+  template <class T>
+  std::vector<std::vector<T>> getListProperty(std::string elementName, std::string propertyName) {
+
+    // Find the property
+    std::shared_ptr<Property> prop = getElement(elementName).getProperty(propertyName);
+
+    // Get a copy of the data with auto-promoting type magic
+    return getDataFromListPropertyRecursive<T, T>(prop.get());
+  }
 
 private:
   std::vector<Element> elements;
@@ -462,7 +475,6 @@ private:
   bool isBinary = false;
 
   // Helpers
-
   Element& getElement(std::string target) {
     for (Element& e : elements) {
       if (e.name == target) return e;
@@ -470,13 +482,16 @@ private:
     throw std::runtime_error("PLY parser: no element with name: " + target);
   }
 
+
   template <class D, class T>
   std::vector<D> getDataFromPropertyRecursive(Property* prop) {
 
-    TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop);
-    if (castedProp) {
-      // Succeeded, return a buffer of the data (copy while converting type)
-      return std::vector<D>(castedProp->data.begin(), castedProp->data.end());
+    { // Try to return data of type D from a property of type T
+      TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop);
+      if (castedProp) {
+        // Succeeded, return a buffer of the data (copy while converting type)
+        return std::vector<D>(castedProp->data.begin(), castedProp->data.end());
+      }
     }
 
     HalfSize<T> halfType;
@@ -487,5 +502,65 @@ private:
       throw std::runtime_error("PLY parser: property " + prop->name + " cannot be coerced to requested type");
     }
   }
+
+
+  template <class D, class T>
+  std::vector<std::vector<D>> getDataFromListPropertyRecursive(Property* prop) {
+
+    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop);
+    if (castedProp) {
+      // Succeeded, return a buffer of the data (copy while converting type)
+      std::vector<std::vector<D>> result;
+      for (std::vector<T>& subList : castedProp->data) {
+        result.emplace_back(subList.begin(), subList.end());
+      }
+      return result;
+    }
+
+    HalfSize<T> halfType;
+    if (halfType.isSmaller) {
+      std::cout << "shrinking type" << std::endl;
+      return getDataFromListPropertyRecursive<D, typename HalfSize<T>::type>(prop);
+    } else {
+      // No smaller type to try, failure
+      throw std::runtime_error("PLY parser: list property " + prop->name + " cannot be coerced to requested type");
+    }
+  }
 };
+
+// Specialization for size_t. It's useful to always look for indices as size_t, but some files store them with a signed type (usually int).
+// This automatically handles that case.
+template <>
+inline std::vector<std::vector<size_t>> PLYData::getListProperty(std::string elementName, std::string propertyName) {
+
+  // Find the property
+  std::shared_ptr<Property> prop = getElement(elementName).getProperty(propertyName);
+
+  // Get a copy of the data with auto-promoting type magic
+  try {
+    return getDataFromListPropertyRecursive<size_t, size_t>(prop.get());
+  } catch (std::runtime_error orig_e) {
+
+    try {
+      std::vector<std::vector<int>> intResult = getListProperty<int>(elementName, propertyName);
+
+      // Check sign while copying
+      std::vector<std::vector<size_t>> copiedResult;
+      for (auto& list : intResult) {
+        for (auto& val : list) {
+          if (val < 0) {
+            throw std::runtime_error("converted int is negative");
+          }
+        }
+        copiedResult.emplace_back(list.begin(), list.end());
+      }
+
+      return copiedResult;
+    } catch (std::runtime_error new_e) {
+      throw orig_e;
+    }
+
+    throw orig_e;
+  }
+}
 }

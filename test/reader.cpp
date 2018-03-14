@@ -1,22 +1,32 @@
 #include "happly.h"
 
-#include <string>
 #include <iostream>
+#include <string>
 
-using std::cout; using std::endl;
+using std::cout;
+using std::endl;
 
 int main(int argc, char** argv) {
 
-  if(argc != 2) {
+  if (argc != 2) {
     cout << "Usage: reader file.ply" << endl;
     std::exit(-1);
   }
 
-  happly::PLYData ply(std::string(argv[1]), true); 
+  happly::PLYData ply(std::string(argv[1]), true);
 
-  std::vector<int> vec = ply.getProperty<int>("vertex", "x");
-  for(auto x : vec) {
+  std::vector<double> vec = ply.getProperty<double>("vertex", "x");
+  for (auto x : vec) {
     cout << x << endl;
+  }
+
+
+  std::vector<std::vector<size_t>> inds = ply.getListProperty<size_t>("face", "vertex_indices");
+  for (auto face : inds) {
+    for (auto x : face) {
+      cout << x << " ";
+    }
+    cout << endl;
   }
 
   return 0;
