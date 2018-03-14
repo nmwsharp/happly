@@ -18,35 +18,71 @@ namespace happly {
 class Property {
 
 public:
-  std::string name;
 
-private:
-  virtual void parseNext(std::ifstream& stream) = 0;
+  Property(std::string name_) : name(name_) {};
+
+  std::string name;
+  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) = 0;
 };
 
 template <class T>
 class TypedProperty : public Property {
 
 public:
-  TypedProperty(std::string name, int countBytes = -1) {};
+  TypedProperty(std::string name_) :Property(name_) {};
 
-  virtual void parseNext(std::ifstream& stream) override {};
+  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+    T val;
+    std::istringstream iss(tokens[currEntry]);
+    iss >> val;
+    data.push_back(val);
+    currEntry++;
+  };
 
-  int listCountBytes = -1;
   std::vector<T> data;
+};
+
+template <class T>
+class TypedListProperty : public Property {
+
+public:
+  TypedListProperty(std::string name_, int listCountBytes_)
+   : Property(name_), listCountBytes(listCountBytes_) {};
+
+  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+
+    std::istringstream iss(tokens[currEntry]);
+    size_t count;
+    iss >> count;
+    currEntry++;
+
+    std::vector<T> thisVec;
+    for (size_t iCount = 0; iCount < count; iCount++) {
+      std::istringstream iss(tokens[currEntry]);
+      T val;
+      iss >> val;
+      thisVec.push_back(val);
+      currEntry++;
+    }
+    data.push_back(thisVec);
+  }
+
+  std::vector<std::vector<T>> data;
+  int listCountBytes;
 };
 
 inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::string typeStr, bool isList,
                                                         std::string listCountTypeStr) {
 
   // == Figure out how many bytes the list count field has, if this is a list type
+  // Note: some files seem to use signed types here, we read the width but always parse as if unsigned
   int listCountBytes = -1;
   if (isList) {
-    if (listCountTypeStr == "uchar" || listCountTypeStr == "uint8") {
+    if (listCountTypeStr == "uchar" || listCountTypeStr == "uint8" || listCountTypeStr == "char" || listCountTypeStr == "int8") {
       listCountBytes = 1;
-    } else if (listCountTypeStr == "ushort" || listCountTypeStr == "uint16") {
+    } else if (listCountTypeStr == "ushort" || listCountTypeStr == "uint16" || listCountTypeStr == "short" || listCountTypeStr == "int16") {
       listCountBytes = 2;
-    } else if (listCountTypeStr == "uint" || listCountTypeStr == "uint32") {
+    } else if (listCountTypeStr == "uint" || listCountTypeStr == "uint32" || listCountTypeStr == "int" || listCountTypeStr == "int32") {
       listCountBytes = 4;
     } else {
       throw std::runtime_error("Unrecognized list count type: " + listCountTypeStr);
@@ -58,7 +94,7 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 8 bit unsigned
   if (typeStr == "uchar" || typeStr == "uint8") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedProperty<std::vector<uint8_t>>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<uint8_t>(name, listCountBytes));
     } else {
       return std::shared_ptr<Property>(new TypedProperty<uint8_t>(name));
     }
@@ -67,7 +103,7 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 16 bit unsigned
   else if (typeStr == "ushort" || typeStr == "uint16") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedProperty<std::vector<uint16_t>>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<uint16_t>(name, listCountBytes));
     } else {
       return std::shared_ptr<Property>(new TypedProperty<uint16_t>(name));
     }
@@ -76,7 +112,7 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 32 bit unsigned
   else if (typeStr == "uint" || typeStr == "uint32") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedProperty<std::vector<uint32_t>>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<uint32_t>(name, listCountBytes));
     } else {
       return std::shared_ptr<Property>(new TypedProperty<uint32_t>(name));
     }
@@ -87,7 +123,7 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 8 bit signed
   if (typeStr == "char" || typeStr == "int8") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedProperty<std::vector<int8_t>>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<int8_t>(name, listCountBytes));
     } else {
       return std::shared_ptr<Property>(new TypedProperty<int8_t>(name));
     }
@@ -96,7 +132,7 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 16 bit signed
   else if (typeStr == "short" || typeStr == "int16") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedProperty<std::vector<int16_t>>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<int16_t>(name, listCountBytes));
     } else {
       return std::shared_ptr<Property>(new TypedProperty<int16_t>(name));
     }
@@ -105,7 +141,7 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 32 bit signed
   else if (typeStr == "int" || typeStr == "int32") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedProperty<std::vector<int32_t>>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<int32_t>(name, listCountBytes));
     } else {
       return std::shared_ptr<Property>(new TypedProperty<int32_t>(name));
     }
@@ -116,7 +152,7 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 32 bit float
   else if (typeStr == "float" || typeStr == "float32") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedProperty<std::vector<float>>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<float>(name, listCountBytes));
     } else {
       return std::shared_ptr<Property>(new TypedProperty<float>(name));
     }
@@ -125,7 +161,7 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 64 bit float
   else if (typeStr == "double" || typeStr == "float64") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedProperty<std::vector<double>>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<double>(name, listCountBytes));
     } else {
       return std::shared_ptr<Property>(new TypedProperty<double>(name));
     }
@@ -278,10 +314,12 @@ public:
         string type = tokens[3];
         string name = tokens[4];
         elements.back().properties.push_back(createPropertyWithType(name, type, true, countType));
-        if (verbose) cout << "    - Found list property: " << name << " (count type = " << countType << ", data type = " << type << ")" << endl;
+        if (verbose)
+          cout << "    - Found list property: " << name << " (count type = " << countType << ", data type = " << type
+               << ")" << endl;
         continue;
       }
-      
+
       // Parse a property
       else if (startsWith(line, "property")) {
         vector<string> tokens = tokenSplit(line);
@@ -290,9 +328,9 @@ public:
         string type = tokens[1];
         string name = tokens[2];
         elements.back().properties.push_back(createPropertyWithType(name, type, false, ""));
-        if (verbose) cout << "    - Found list property: " << name << " (type = " << type << ")" << endl;
+        if (verbose) cout << "    - Found property: " << name << " (type = " << type << ")" << endl;
         continue;
-      } 
+      }
 
       // Parse end of header
       else if (startsWith(line, "end_header")) {
@@ -301,36 +339,47 @@ public:
 
       // Error!
       else {
-        throw std::runtime_error("Unrecognized header line: " + line); 
+        throw std::runtime_error("Unrecognized header line: " + line);
       }
     }
 
-  // Parse data from a binary file
-  if(isBinary) {
-    throw std::runtime_error("binary parser not implemented");
-  } 
+    // Parse data from a binary file
+    if (isBinary) {
+      throw std::runtime_error("binary parser not implemented");
+    }
 
-  // Parse data from an ASCII file
-  else {
+    // Parse data from an ASCII file
+    else {
 
-    for(Element& elem : elements) {
+      // Read all elements
+      for (Element& elem : elements) {
 
-      for(size_t iEntry = 0; iEntry < elem.count; iEntry++) {
+        if (verbose) {
+          cout << "  - Processing element: " << elem.name << endl;
+        }
 
+        for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
 
+          if (!inStream.good()) {
+            throw std::runtime_error("PLY parser: Ran out of file while processing element: " + elem.name);
+          }
+
+          string line;
+          std::getline(inStream, line);
+
+          vector<string> tokens = tokenSplit(line);
+          size_t iTok = 0;
+          for (size_t iP = 0; iP < elem.properties.size(); iP++) {
+            elem.properties[iP]->parseNext(tokens, iTok);
+          }
+        }
       }
     }
 
-    while (inStream.good()) {
-      string line;
-      std::getline(inStream, line);
 
+    if(verbose) {
+      cout << "  - Finished parsing file." << endl;
     }
-
-  }
-
-
-
   }
 
 
