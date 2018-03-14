@@ -8,6 +8,7 @@
 #include <array>
 #include <cstddef>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -18,6 +19,20 @@
 
 
 namespace happly {
+
+// Type names
+// clang-format off
+template <typename T> std::string typeName() { return "unknown"; }
+template<> std::string typeName<char>() { return "char"; }
+template<> std::string typeName<unsigned char>() { return "uchar"; }
+template<> std::string typeName<short>() { return "short"; }
+template<> std::string typeName<unsigned short>() { return "ushort"; }
+template<> std::string typeName<int>() { return "int"; }
+template<> std::string typeName<unsigned int>() { return "uint"; }
+template<> std::string typeName<float>() { return "float"; }
+template<> std::string typeName<double>() { return "double"; }
+// clang-format on 
+
 
 class Property {
 
@@ -31,6 +46,9 @@ public:
 
   // binary copying
   virtual void readNext(std::ifstream& stream) = 0;
+
+
+  virtual void writeHeader(std::ofstream& outStream) = 0;
 };
 
 template <class T>
@@ -51,6 +69,10 @@ public:
     T val;
     stream.read((char*)&val, sizeof(T));
     data.push_back(val);
+  }
+  
+  virtual void writeHeader(std::ofstream& outStream) {
+    outStream << "property " << typeName<T>() << " " << name << "\n";
   }
 
   std::vector<T> data;
@@ -94,6 +116,12 @@ public:
       thisVec.push_back(val);
     }
     data.push_back(thisVec);
+  }
+  
+  virtual void writeHeader(std::ofstream& outStream) {
+    // NOTE: We ALWAYS use int as the list count output type
+    T t;
+    outStream << "property list int " << typeName<T>() << " " << name << "\n";
   }
 
   std::vector<std::vector<T>> data;
@@ -221,6 +249,17 @@ public:
     }
     throw std::runtime_error("PLY parser: element " + name + " does not have property " + target);
   }
+
+  void writeHeader(std::ofstream& outStream) {
+
+    outStream << "element " << name << " " << count << "\n";
+
+    for(std::shared_ptr<Property> p : properties) {
+      p->writeHeader(outStream);
+    }
+
+  }
+
 };
 
 // Some string helpers
@@ -348,7 +387,19 @@ public:
   }
 
 
-  void write(std::string filename, bool binary = true);
+  void write(std::string filename) {
+
+    // Open stream for writing
+    std::ofstream outStream(filename);
+    if(!outStream.good()) {
+      throw std::runtime_error("Ply writer: Could not open output file " + filename + " for writing");
+    }
+
+    writeHeader(outStream);
+
+    // Write all elements
+
+  }
 
   // === Get data out of the representation
   template <class T>
@@ -430,7 +481,7 @@ private:
   }
 
 
-  // Parsing helpers
+  // === Reading ===
 
   void parseHeader(std::ifstream& inStream, bool verbose) {
 
@@ -583,11 +634,13 @@ private:
 
       for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
         for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-          elem.properties[iP]->readNext(inStream);
+          elem.properties[iP]->readNext(inStream);// clang-format off
         }
       }
     }
   }
+
+  // === Get Data ===
 
   template <class D, class T>
   std::vector<D> getDataFromPropertyRecursive(Property* prop) {
@@ -631,6 +684,39 @@ private:
       throw std::runtime_error("PLY parser: list property " + prop->name + " cannot be coerced to requested type");
     }
   }
+
+
+  // === Writing ===
+  void writeHeader(std::ofstream& outStream) {
+
+    // Magic line
+    outStream << "ply\n";
+
+    // Type line
+    outStream << "format ";
+    if (isBinary) {
+      outStream << "binary_little_endian ";
+    } else {
+      outStream << "ascii";
+    }
+    std::streamsize initPrecision = std::cout.precision();
+    outStream << std::setprecision(1) << std::fixed << version << std::defaultfloat
+                                                         << std::setprecision(initPrecision) << "\n";
+
+    // Write comments
+    for(std::string& comment : comments) {
+      outStream << "comment " << comment << "\n";
+    }
+
+    // Write elements (and their properties)
+    for(Element& e : elements) {
+      e.writeHeader(outStream);
+    }
+
+    // End header
+    outStream << "end_header\n";
+  }
+
 };
 
 // Specialization for size_t. It's useful to always look for indices as size_t, but some files store them with a signed
