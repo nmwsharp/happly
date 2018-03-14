@@ -1,3 +1,13 @@
+# Build directories
+test/build/
+test/build_debug/
+
+# Editor and OS things
+.DS_Store
+.vscode
+*.swp
+tags
+
 # Prerequisites
 *.d
 
