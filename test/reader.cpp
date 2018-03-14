@@ -22,6 +22,7 @@ int main(int argc, char** argv) {
 
 
   std::vector<std::vector<size_t>> inds = ply.getListProperty<size_t>("face", "vertex_indices");
+  inds = ply.getFaceIndices();
   for (auto face : inds) {
     for (auto x : face) {
       cout << x << " ";

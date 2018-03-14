@@ -24,7 +24,12 @@ public:
   Property(std::string name_) : name(name_){};
 
   std::string name;
+
+  // ASCII parsing
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) = 0;
+
+  // binary copying
+  virtual void readNext(std::ifstream& stream) = 0;
 };
 
 template <class T>
@@ -40,6 +45,12 @@ public:
     data.push_back(val);
     currEntry++;
   };
+
+  virtual void readNext(std::ifstream& stream) {
+    T val;
+    stream.read((char*)&val, sizeof(T));
+    data.push_back(val);
+  }
 
   std::vector<T> data;
 };
@@ -64,6 +75,22 @@ public:
       iss >> val;
       thisVec.push_back(val);
       currEntry++;
+    }
+    data.push_back(thisVec);
+  }
+
+  virtual void readNext(std::ifstream& stream) {
+
+    // Read the size of the list
+    size_t count = 0;
+    stream.read(((char*)&count), listCountBytes);
+
+    // Read list elements
+    std::vector<T> thisVec;
+    for (size_t iCount = 0; iCount < count; iCount++) {
+      T val;
+      stream.read((char*)&val, sizeof(T));
+      thisVec.push_back(val);
     }
     data.push_back(thisVec);
   }
@@ -294,7 +321,7 @@ public:
     if (verbose) cout << "PLY: Reading ply file: " << filename << endl;
 
     // Open a file in binary always, in case it turns out to have binary data.
-    std::ifstream inStream(filename, std::ios::binary); 
+    std::ifstream inStream(filename, std::ios::binary);
     if (inStream.fail()) {
       throw std::runtime_error("Could not open file " + filename);
     }
@@ -405,12 +432,27 @@ public:
       }
     }
 
-    // Parse data from a binary file
+    // === Parse data from a binary file
     if (isBinary) {
-      throw std::runtime_error("binary parser not implemented");
+
+      // Read all elements
+      for (Element& elem : elements) {
+
+        if (verbose) {
+          cout << "  - Processing element: " << elem.name << endl;
+        }
+
+        for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
+          for (size_t iP = 0; iP < elem.properties.size(); iP++) {
+            elem.properties[iP]->readNext(inStream);
+          }
+        }
+      }
+
+
     }
 
-    // Parse data from an ASCII file
+    // === Parse data from an ASCII file
     else {
 
       // Read all elements
@@ -421,10 +463,6 @@ public:
         }
 
         for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
-
-          if (!inStream.good()) {
-            throw std::runtime_error("PLY parser: Ran out of file while processing element: " + elem.name);
-          }
 
           string line;
           std::getline(inStream, line);
@@ -468,6 +506,44 @@ public:
     return getDataFromListPropertyRecursive<T, T>(prop.get());
   }
 
+
+  // === Common-case helpers
+  std::vector<std::array<double, 3>> getVertexPositions(std::string vertexElementName = "vertex") {
+
+    std::vector<double> xPos = getProperty<double>(vertexElementName, "x");
+    std::vector<double> yPos = getProperty<double>(vertexElementName, "y");
+    std::vector<double> zPos = getProperty<double>(vertexElementName, "z");
+
+    std::vector<std::array<double, 3>> result(xPos.size());
+    for (size_t i = 0; i < result.size(); i++) {
+      result[i][0] = xPos[i];
+      result[i][1] = yPos[i];
+      result[i][2] = zPos[i];
+    }
+
+    return result;
+  }
+
+  std::vector<std::array<unsigned char, 3>> getVertexColors(std::string vertexElementName = "vertex") {
+
+    std::vector<unsigned char> r = getProperty<unsigned char>(vertexElementName, "red");
+    std::vector<unsigned char> g = getProperty<unsigned char>(vertexElementName, "green");
+    std::vector<unsigned char> b = getProperty<unsigned char>(vertexElementName, "blue");
+
+    std::vector<std::array<unsigned char, 3>> result(r.size());
+    for (size_t i = 0; i < result.size(); i++) {
+      result[i][0] = r[i];
+      result[i][1] = g[i];
+      result[i][2] = b[i];
+    }
+
+    return result;
+  }
+
+  std::vector<std::vector<size_t>> getFaceIndices(std::string faceElementName = "face",
+                                                  std::string indexPropertyName = "vertex_indices");
+
+
 private:
   std::vector<Element> elements;
   std::vector<std::string> comments;
@@ -480,6 +556,12 @@ private:
       if (e.name == target) return e;
     }
     throw std::runtime_error("PLY parser: no element with name: " + target);
+  }
+  bool hasElement(std::string target) {
+    for (Element& e : elements) {
+      if (e.name == target) return true;
+    }
+    return false;
   }
 
 
@@ -519,7 +601,6 @@ private:
 
     HalfSize<T> halfType;
     if (halfType.isSmaller) {
-      std::cout << "shrinking type" << std::endl;
       return getDataFromListPropertyRecursive<D, typename HalfSize<T>::type>(prop);
     } else {
       // No smaller type to try, failure
@@ -528,7 +609,8 @@ private:
   }
 };
 
-// Specialization for size_t. It's useful to always look for indices as size_t, but some files store them with a signed type (usually int).
+// Specialization for size_t. It's useful to always look for indices as size_t, but some files store them with a signed
+// type (usually int).
 // This automatically handles that case.
 template <>
 inline std::vector<std::vector<size_t>> PLYData::getListProperty(std::string elementName, std::string propertyName) {
@@ -562,5 +644,11 @@ inline std::vector<std::vector<size_t>> PLYData::getListProperty(std::string ele
 
     throw orig_e;
   }
+}
+
+
+inline std::vector<std::vector<size_t>> PLYData::getFaceIndices(std::string faceElementName,
+                                                                std::string indexPropertyName) {
+  return getListProperty<size_t>(faceElementName, indexPropertyName);
 }
 }
