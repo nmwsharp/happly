@@ -5,6 +5,7 @@
  * By Nicholas Sharp - nsharp@cs.cmu.edu
  */
 
+#include <array>
 #include <cstddef>
 #include <fstream>
 #include <iostream>
@@ -225,7 +226,7 @@ public:
 // Some string helpers
 namespace {
 
-std::string trimSpaces(std::string input) {
+inline std::string trimSpaces(std::string input) {
   size_t start = 0;
   while (start < input.size() && input[start] == ' ') start++;
   size_t end = input.size();
@@ -233,7 +234,7 @@ std::string trimSpaces(std::string input) {
   return input.substr(start, end - start);
 }
 
-std::vector<std::string> tokenSplit(std::string input) {
+inline std::vector<std::string> tokenSplit(std::string input) {
   std::vector<std::string> result;
   size_t curr = 0;
   size_t found = 0;
@@ -254,13 +255,13 @@ std::vector<std::string> tokenSplit(std::string input) {
   return result;
 }
 
-bool startsWith(std::string input, std::string query) { return input.compare(0, query.length(), query) == 0; }
+inline bool startsWith(std::string input, std::string query) { return input.compare(0, query.length(), query) == 0; }
 };
 
 // Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
 namespace {
 
-// A pointer for the smaller equivalent of a type (eg. when a double is requested, a float works too)
+// A pointer for the smaller equivalent of a type (eg. when a double is requested a float works too, etc)
 template <class T>
 struct HalfSize {
   bool isSmaller = false;
@@ -318,162 +319,26 @@ public:
     using std::cout;
     using std::endl;
 
-    if (verbose) cout << "PLY: Reading ply file: " << filename << endl;
+    if (verbose) cout << "PLY parser: Reading ply file: " << filename << endl;
 
     // Open a file in binary always, in case it turns out to have binary data.
     std::ifstream inStream(filename, std::ios::binary);
     if (inStream.fail()) {
-      throw std::runtime_error("Could not open file " + filename);
+      throw std::runtime_error("PLY parser: Could not open file " + filename);
     }
 
 
     // == Process the header
+    parseHeader(inStream, verbose);
 
-    // First two lines are predetermined
-    { // First line is magic constant
-      string plyLine;
-      std::getline(inStream, plyLine);
-      if (trimSpaces(plyLine) != "ply") {
-        throw std::runtime_error("File does not appear to be ply file. First line should be 'ply'");
-      }
-    }
-
-    { // second line is version
-      string styleLine;
-      std::getline(inStream, styleLine);
-      vector<string> tokens = tokenSplit(styleLine);
-      if (tokens.size() != 3) throw std::runtime_error("PLY parser: bad format line");
-      std::string formatStr = tokens[0];
-      std::string typeStr = tokens[1];
-      std::string versionStr = tokens[2];
-
-      // "format"
-      if (formatStr != "format") throw std::runtime_error("PLY parser: bad format line");
-
-      // ascii/binary
-      if (typeStr == "ascii") {
-        isBinary = false;
-        if (verbose) cout << "  - Type: ascii" << endl;
-      } else if (typeStr == "binary_little_endian") {
-        isBinary = true;
-        if (verbose) cout << "  - Type: binary" << endl;
-      } else if (typeStr == "binary_big_endian") {
-        throw std::runtime_error("PLY parser: encountered scary big endian file. Don't know how to parse that");
-      } else {
-        throw std::runtime_error("PLY parser: bad format line");
-      }
-
-      // version
-      version = std::atof(versionStr.c_str());
-      if (verbose) cout << "  - Version: " << version << endl;
-    }
-
-    // Consume header line by line
-    while (inStream.good()) {
-      string line;
-      std::getline(inStream, line);
-
-      // Parse a comment
-      if (startsWith(line, "comment")) {
-        string comment = line.substr(7);
-        if (verbose) cout << "  - Comment: " << comment << endl;
-        comments.push_back(comment);
-        continue;
-      }
-
-      // Parse an element
-      else if (startsWith(line, "element")) {
-        vector<string> tokens = tokenSplit(line);
-        if (tokens.size() != 3) throw std::runtime_error("PLY parser: Invalid element line");
-        string name = tokens[1];
-        size_t count;
-        std::istringstream iss(tokens[2]);
-        iss >> count;
-        elements.emplace_back(name, count);
-        if (verbose) cout << "  - Found element: " << name << " (count = " << count << ")" << endl;
-        continue;
-      }
-
-      // Parse a property list
-      else if (startsWith(line, "property list")) {
-        vector<string> tokens = tokenSplit(line);
-        if (tokens.size() != 5) throw std::runtime_error("PLY parser: Invalid property list line");
-        if (elements.size() == 0) throw std::runtime_error("PLY parse: Found property list without previous element");
-        string countType = tokens[2];
-        string type = tokens[3];
-        string name = tokens[4];
-        elements.back().properties.push_back(createPropertyWithType(name, type, true, countType));
-        if (verbose)
-          cout << "    - Found list property: " << name << " (count type = " << countType << ", data type = " << type
-               << ")" << endl;
-        continue;
-      }
-
-      // Parse a property
-      else if (startsWith(line, "property")) {
-        vector<string> tokens = tokenSplit(line);
-        if (tokens.size() != 3) throw std::runtime_error("PLY parser: Invalid property line");
-        if (elements.size() == 0) throw std::runtime_error("PLY parse: Found property without previous element");
-        string type = tokens[1];
-        string name = tokens[2];
-        elements.back().properties.push_back(createPropertyWithType(name, type, false, ""));
-        if (verbose) cout << "    - Found property: " << name << " (type = " << type << ")" << endl;
-        continue;
-      }
-
-      // Parse end of header
-      else if (startsWith(line, "end_header")) {
-        break;
-      }
-
-      // Error!
-      else {
-        throw std::runtime_error("Unrecognized header line: " + line);
-      }
-    }
 
     // === Parse data from a binary file
     if (isBinary) {
-
-      // Read all elements
-      for (Element& elem : elements) {
-
-        if (verbose) {
-          cout << "  - Processing element: " << elem.name << endl;
-        }
-
-        for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
-          for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-            elem.properties[iP]->readNext(inStream);
-          }
-        }
-      }
-
-
+      parseBinary(inStream, verbose);
     }
-
     // === Parse data from an ASCII file
     else {
-
-      // Read all elements
-      for (Element& elem : elements) {
-
-        if (verbose) {
-          cout << "  - Processing element: " << elem.name << endl;
-        }
-
-        for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
-
-          string line;
-          std::getline(inStream, line);
-
-          vector<string> tokens = tokenSplit(line);
-          size_t iTok = 0;
-          for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-            elem.properties[iP]->parseNext(tokens, iTok);
-          }
-        }
-      }
+      parseASCII(inStream, verbose);
     }
 
 
@@ -564,6 +429,165 @@ private:
     return false;
   }
 
+
+  // Parsing helpers
+
+  void parseHeader(std::ifstream& inStream, bool verbose) {
+
+    using std::vector;
+    using std::string;
+    using std::cout;
+    using std::endl;
+
+    // First two lines are predetermined
+    { // First line is magic constant
+      string plyLine;
+      std::getline(inStream, plyLine);
+      if (trimSpaces(plyLine) != "ply") {
+        throw std::runtime_error("PLY parser: File does not appear to be ply file. First line should be 'ply'");
+      }
+    }
+
+    { // second line is version
+      string styleLine;
+      std::getline(inStream, styleLine);
+      vector<string> tokens = tokenSplit(styleLine);
+      if (tokens.size() != 3) throw std::runtime_error("PLY parser: bad format line");
+      std::string formatStr = tokens[0];
+      std::string typeStr = tokens[1];
+      std::string versionStr = tokens[2];
+
+      // "format"
+      if (formatStr != "format") throw std::runtime_error("PLY parser: bad format line");
+
+      // ascii/binary
+      if (typeStr == "ascii") {
+        isBinary = false;
+        if (verbose) cout << "  - Type: ascii" << endl;
+      } else if (typeStr == "binary_little_endian") {
+        isBinary = true;
+        if (verbose) cout << "  - Type: binary" << endl;
+      } else if (typeStr == "binary_big_endian") {
+        throw std::runtime_error("PLY parser: encountered scary big endian file. Don't know how to parse that");
+      } else {
+        throw std::runtime_error("PLY parser: bad format line");
+      }
+
+      // version
+      version = std::atof(versionStr.c_str());
+      if (verbose) cout << "  - Version: " << version << endl;
+    }
+
+    // Consume header line by line
+    while (inStream.good()) {
+      string line;
+      std::getline(inStream, line);
+
+      // Parse a comment
+      if (startsWith(line, "comment")) {
+        string comment = line.substr(7);
+        if (verbose) cout << "  - Comment: " << comment << endl;
+        comments.push_back(comment);
+        continue;
+      }
+
+      // Parse an element
+      else if (startsWith(line, "element")) {
+        vector<string> tokens = tokenSplit(line);
+        if (tokens.size() != 3) throw std::runtime_error("PLY parser: Invalid element line");
+        string name = tokens[1];
+        size_t count;
+        std::istringstream iss(tokens[2]);
+        iss >> count;
+        elements.emplace_back(name, count);
+        if (verbose) cout << "  - Found element: " << name << " (count = " << count << ")" << endl;
+        continue;
+      }
+
+      // Parse a property list
+      else if (startsWith(line, "property list")) {
+        vector<string> tokens = tokenSplit(line);
+        if (tokens.size() != 5) throw std::runtime_error("PLY parser: Invalid property list line");
+        if (elements.size() == 0) throw std::runtime_error("PLY parser: Found property list without previous element");
+        string countType = tokens[2];
+        string type = tokens[3];
+        string name = tokens[4];
+        elements.back().properties.push_back(createPropertyWithType(name, type, true, countType));
+        if (verbose)
+          cout << "    - Found list property: " << name << " (count type = " << countType << ", data type = " << type
+               << ")" << endl;
+        continue;
+      }
+
+      // Parse a property
+      else if (startsWith(line, "property")) {
+        vector<string> tokens = tokenSplit(line);
+        if (tokens.size() != 3) throw std::runtime_error("PLY parser: Invalid property line");
+        if (elements.size() == 0) throw std::runtime_error("PLY parser: Found property without previous element");
+        string type = tokens[1];
+        string name = tokens[2];
+        elements.back().properties.push_back(createPropertyWithType(name, type, false, ""));
+        if (verbose) cout << "    - Found property: " << name << " (type = " << type << ")" << endl;
+        continue;
+      }
+
+      // Parse end of header
+      else if (startsWith(line, "end_header")) {
+        break;
+      }
+
+      // Error!
+      else {
+        throw std::runtime_error("Unrecognized header line: " + line);
+      }
+    }
+  }
+
+  void parseASCII(std::ifstream& inStream, bool verbose) {
+
+    using std::vector;
+    using std::string;
+
+    // Read all elements
+    for (Element& elem : elements) {
+
+      if (verbose) {
+        std::cout << "  - Processing element: " << elem.name << std::endl;
+      }
+
+      for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
+
+        string line;
+        std::getline(inStream, line);
+
+        vector<string> tokens = tokenSplit(line);
+        size_t iTok = 0;
+        for (size_t iP = 0; iP < elem.properties.size(); iP++) {
+          elem.properties[iP]->parseNext(tokens, iTok);
+        }
+      }
+    }
+  }
+
+  void parseBinary(std::ifstream& inStream, bool verbose) {
+
+    using std::vector;
+    using std::string;
+
+    // Read all elements
+    for (Element& elem : elements) {
+
+      if (verbose) {
+        std::cout << "  - Processing element: " << elem.name << std::endl;
+      }
+
+      for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
+        for (size_t iP = 0; iP < elem.properties.size(); iP++) {
+          elem.properties[iP]->readNext(inStream);
+        }
+      }
+    }
+  }
 
   template <class D, class T>
   std::vector<D> getDataFromPropertyRecursive(Property* prop) {
