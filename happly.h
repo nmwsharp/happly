@@ -5,11 +5,13 @@
  * By Nicholas Sharp - nsharp@cs.cmu.edu
  */
 
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 
@@ -18,8 +20,7 @@ namespace happly {
 class Property {
 
 public:
-
-  Property(std::string name_) : name(name_) {};
+  Property(std::string name_) : name(name_){};
 
   std::string name;
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) = 0;
@@ -29,7 +30,7 @@ template <class T>
 class TypedProperty : public Property {
 
 public:
-  TypedProperty(std::string name_) :Property(name_) {};
+  TypedProperty(std::string name_) : Property(name_){};
 
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
     T val;
@@ -46,8 +47,7 @@ template <class T>
 class TypedListProperty : public Property {
 
 public:
-  TypedListProperty(std::string name_, int listCountBytes_)
-   : Property(name_), listCountBytes(listCountBytes_) {};
+  TypedListProperty(std::string name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_){};
 
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
 
@@ -78,11 +78,14 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // Note: some files seem to use signed types here, we read the width but always parse as if unsigned
   int listCountBytes = -1;
   if (isList) {
-    if (listCountTypeStr == "uchar" || listCountTypeStr == "uint8" || listCountTypeStr == "char" || listCountTypeStr == "int8") {
+    if (listCountTypeStr == "uchar" || listCountTypeStr == "uint8" || listCountTypeStr == "char" ||
+        listCountTypeStr == "int8") {
       listCountBytes = 1;
-    } else if (listCountTypeStr == "ushort" || listCountTypeStr == "uint16" || listCountTypeStr == "short" || listCountTypeStr == "int16") {
+    } else if (listCountTypeStr == "ushort" || listCountTypeStr == "uint16" || listCountTypeStr == "short" ||
+               listCountTypeStr == "int16") {
       listCountBytes = 2;
-    } else if (listCountTypeStr == "uint" || listCountTypeStr == "uint32" || listCountTypeStr == "int" || listCountTypeStr == "int32") {
+    } else if (listCountTypeStr == "uint" || listCountTypeStr == "uint32" || listCountTypeStr == "int" ||
+               listCountTypeStr == "int32") {
       listCountBytes = 4;
     } else {
       throw std::runtime_error("Unrecognized list count type: " + listCountTypeStr);
@@ -180,6 +183,15 @@ public:
   std::string name;
   size_t count;
   std::vector<std::shared_ptr<Property>> properties;
+
+  std::shared_ptr<Property> getProperty(std::string target) {
+    for (std::shared_ptr<Property> prop : properties) {
+      if (prop->name == target) {
+        return prop;
+      }
+    }
+    throw std::runtime_error("PLY parser: element " + name + " does not have property " + target);
+  }
 };
 
 // Some string helpers
@@ -215,6 +227,52 @@ std::vector<std::string> tokenSplit(std::string input) {
 }
 
 bool startsWith(std::string input, std::string query) { return input.compare(0, query.length(), query) == 0; }
+};
+
+// Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
+namespace {
+
+template <class T>
+struct HalfSize {
+  bool isSmaller = false;
+  typedef T type;
+};
+
+template <>
+struct HalfSize<int64_t> {
+  bool isSmaller = true;
+  typedef int32_t type;
+};
+template <>
+struct HalfSize<int32_t> {
+  bool isSmaller = true;
+  typedef int16_t type;
+};
+template <>
+struct HalfSize<int16_t> {
+  bool isSmaller = true;
+  typedef int8_t type;
+};
+template <>
+struct HalfSize<uint64_t> {
+  bool isSmaller = true;
+  typedef uint32_t type;
+};
+template <>
+struct HalfSize<uint32_t> {
+  bool isSmaller = true;
+  typedef uint16_t type;
+};
+template <>
+struct HalfSize<uint16_t> {
+  bool isSmaller = true;
+  typedef uint8_t type;
+};
+template <>
+struct HalfSize<double> {
+  bool isSmaller = true;
+  typedef float type;
+};
 };
 
 class PLYData {
@@ -377,7 +435,7 @@ public:
     }
 
 
-    if(verbose) {
+    if (verbose) {
       cout << "  - Finished parsing file." << endl;
     }
   }
@@ -385,11 +443,49 @@ public:
 
   void write(std::string filename, bool binary = true);
 
+  // === Get data out of the representation
+  template <class T>
+  std::vector<T> getProperty(std::string elementName, std::string propertyName) {
+
+    // Find the property
+    std::shared_ptr<Property> prop = getElement(elementName).getProperty(propertyName);
+
+    // Get a copy of the data with auto-promoting type magic
+    return getDataFromPropertyRecursive<T, T>(prop.get());
+  }
+
 
 private:
   std::vector<Element> elements;
   std::vector<std::string> comments;
   float version = 1.0;
   bool isBinary = false;
+
+  // Helpers
+
+  Element& getElement(std::string target) {
+    for (Element& e : elements) {
+      if (e.name == target) return e;
+    }
+    throw std::runtime_error("PLY parser: no element with name: " + target);
+  }
+
+  template <class D, class T>
+  std::vector<D> getDataFromPropertyRecursive(Property* prop) {
+
+    TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop);
+    if (castedProp) {
+      // Succeeded, return a buffer of the data (copy while converting type)
+      return std::vector<D>(castedProp->data.begin(), castedProp->data.end());
+    }
+
+    HalfSize<T> halfType;
+    if (halfType.isSmaller) {
+      return getDataFromPropertyRecursive<D, typename HalfSize<T>::type>(prop);
+    } else {
+      // No smaller type to try, failure
+      throw std::runtime_error("PLY parser: property " + prop->name + " cannot be coerced to requested type");
+    }
+  }
 };
 }

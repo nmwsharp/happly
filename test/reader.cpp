@@ -12,7 +12,12 @@ int main(int argc, char** argv) {
     std::exit(-1);
   }
 
-  happly::PLYData(std::string(argv[1]), true); 
+  happly::PLYData ply(std::string(argv[1]), true); 
+
+  std::vector<int> vec = ply.getProperty<int>("vertex", "x");
+  for(auto x : vec) {
+    cout << x << endl;
+  }
 
   return 0;
 }
