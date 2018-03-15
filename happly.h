@@ -23,14 +23,14 @@ namespace happly {
 // Type names
 // clang-format off
 template <typename T> std::string typeName() { return "unknown"; }
-template<> std::string typeName<char>() { return "char"; }
-template<> std::string typeName<unsigned char>() { return "uchar"; }
-template<> std::string typeName<short>() { return "short"; }
-template<> std::string typeName<unsigned short>() { return "ushort"; }
-template<> std::string typeName<int>() { return "int"; }
-template<> std::string typeName<unsigned int>() { return "uint"; }
-template<> std::string typeName<float>() { return "float"; }
-template<> std::string typeName<double>() { return "double"; }
+template<> inline std::string typeName<char>() { return "char"; }
+template<> inline std::string typeName<unsigned char>() { return "uchar"; }
+template<> inline std::string typeName<short>() { return "short"; }
+template<> inline std::string typeName<unsigned short>() { return "ushort"; }
+template<> inline std::string typeName<int>() { return "int"; }
+template<> inline std::string typeName<unsigned int>() { return "uint"; }
+template<> inline std::string typeName<float>() { return "float"; }
+template<> inline std::string typeName<double>() { return "double"; }
 // clang-format on
 
 
@@ -54,6 +54,7 @@ public:
 
 
   virtual size_t size() = 0;
+  virtual std::string propertyTypeName() = 0;
 };
 
 template <class T>
@@ -88,6 +89,8 @@ public:
   }
 
   virtual size_t size() override { return data.size(); }
+
+  virtual std::string propertyTypeName() override { return typeName<T>(); }
 
   std::vector<T> data;
 };
@@ -156,6 +159,7 @@ public:
   }
 
   virtual size_t size() override { return data.size(); }
+  virtual std::string propertyTypeName() override { return typeName<T>(); }
 
   std::vector<std::vector<T>> data;
   int listCountBytes = -1;
@@ -187,27 +191,27 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 8 bit unsigned
   if (typeStr == "uchar" || typeStr == "uint8") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<uint8_t>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<unsigned char>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<uint8_t>(name));
+      return std::shared_ptr<Property>(new TypedProperty<unsigned char>(name));
     }
   }
 
   // 16 bit unsigned
   else if (typeStr == "ushort" || typeStr == "uint16") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<uint16_t>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<unsigned short>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<uint16_t>(name));
+      return std::shared_ptr<Property>(new TypedProperty<unsigned short>(name));
     }
   }
 
   // 32 bit unsigned
   else if (typeStr == "uint" || typeStr == "uint32") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<uint32_t>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<unsigned int>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<uint32_t>(name));
+      return std::shared_ptr<Property>(new TypedProperty<unsigned int>(name));
     }
   }
 
@@ -216,27 +220,27 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 8 bit signed
   if (typeStr == "char" || typeStr == "int8") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<int8_t>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<char>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<int8_t>(name));
+      return std::shared_ptr<Property>(new TypedProperty<char>(name));
     }
   }
 
   // 16 bit signed
   else if (typeStr == "short" || typeStr == "int16") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<int16_t>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<short>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<int16_t>(name));
+      return std::shared_ptr<Property>(new TypedProperty<short>(name));
     }
   }
 
   // 32 bit signed
   else if (typeStr == "int" || typeStr == "int32") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<int32_t>(name, listCountBytes));
+      return std::shared_ptr<Property>(new TypedListProperty<int>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<int32_t>(name));
+      return std::shared_ptr<Property>(new TypedProperty<int>(name));
     }
   }
 
@@ -284,10 +288,20 @@ public:
   }
 
   // This class owns newProp and will deallocate it when ready
-  void addProperty(Property* newProp) {
+  void addProperty(Property* newProp, bool removeExisting = true) {
 
     if (newProp->size() != count) {
       throw std::runtime_error("PLY write: new property " + newProp->name + " has size which does not match element");
+    }
+
+    // If there is already some property with this name, remove it
+    if (removeExisting) {
+      for (size_t i = 0; i < properties.size(); i++) {
+        if (properties[i]->name == newProp->name) {
+          properties.erase(properties.begin() + i);
+          i--;
+        }
+      }
     }
 
     properties.push_back(std::shared_ptr<Property>(newProp));
@@ -828,7 +842,7 @@ private:
       return getDataFromPropertyRecursive<D, typename HalfSize<T>::type>(prop);
     } else {
       // No smaller type to try, failure
-      throw std::runtime_error("PLY parser: property " + prop->name + " cannot be coerced to requested type");
+      throw std::runtime_error("PLY parser: property " + prop->name + " cannot be coerced to requested type. Has type " + prop->propertyTypeName());
     }
   }
 
