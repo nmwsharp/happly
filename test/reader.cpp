@@ -30,5 +30,7 @@ int main(int argc, char** argv) {
     cout << endl;
   }
 
+  ply.write("test.ply");
+
   return 0;
 }

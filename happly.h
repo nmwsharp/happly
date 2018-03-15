@@ -31,7 +31,7 @@ template<> std::string typeName<int>() { return "int"; }
 template<> std::string typeName<unsigned int>() { return "uint"; }
 template<> std::string typeName<float>() { return "float"; }
 template<> std::string typeName<double>() { return "double"; }
-// clang-format on 
+// clang-format on
 
 
 class Property {
@@ -49,6 +49,11 @@ public:
 
 
   virtual void writeHeader(std::ofstream& outStream) = 0;
+  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) = 0;
+  virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) = 0;
+
+
+  virtual size_t size() = 0;
 };
 
 template <class T>
@@ -56,8 +61,9 @@ class TypedProperty : public Property {
 
 public:
   TypedProperty(std::string name_) : Property(name_){};
+  TypedProperty(std::string name_, std::vector<T>& data_) : Property(name_), data(data_){};
 
-  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) override {
     T val;
     std::istringstream iss(tokens[currEntry]);
     iss >> val;
@@ -65,15 +71,23 @@ public:
     currEntry++;
   };
 
-  virtual void readNext(std::ifstream& stream) {
+  virtual void readNext(std::ifstream& stream) override {
     T val;
     stream.read((char*)&val, sizeof(T));
     data.push_back(val);
   }
-  
-  virtual void writeHeader(std::ofstream& outStream) {
+
+  virtual void writeHeader(std::ofstream& outStream) override {
     outStream << "property " << typeName<T>() << " " << name << "\n";
   }
+
+  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override { outStream << data[iElement]; }
+
+  virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) override {
+    outStream.write((char*)&data[iElement], sizeof(T));
+  }
+
+  virtual size_t size() override { return data.size(); }
 
   std::vector<T> data;
 };
@@ -83,8 +97,9 @@ class TypedListProperty : public Property {
 
 public:
   TypedListProperty(std::string name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_){};
+  TypedListProperty(std::string name_, std::vector<std::vector<T>>& data_) : Property(name_), data(data_){};
 
-  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) override {
 
     std::istringstream iss(tokens[currEntry]);
     size_t count;
@@ -102,7 +117,7 @@ public:
     data.push_back(thisVec);
   }
 
-  virtual void readNext(std::ifstream& stream) {
+  virtual void readNext(std::ifstream& stream) override {
 
     // Read the size of the list
     size_t count = 0;
@@ -117,15 +132,33 @@ public:
     }
     data.push_back(thisVec);
   }
-  
-  virtual void writeHeader(std::ofstream& outStream) {
+
+  virtual void writeHeader(std::ofstream& outStream) override {
     // NOTE: We ALWAYS use int as the list count output type
-    T t;
-    outStream << "property list int " << typeName<T>() << " " << name << "\n";
+    outStream << "property list uint " << typeName<T>() << " " << name << "\n";
   }
 
+  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
+    std::vector<T>& elemList = data[iElement];
+    outStream << elemList.size();
+    for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
+      outStream << " " << elemList[iEntry];
+    }
+  }
+
+  virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) override {
+    std::vector<T>& elemList = data[iElement];
+    unsigned int count = elemList.size();
+    outStream.write((char*)&count, sizeof(int));
+    for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
+      outStream.write((char*)&elemList[iEntry], sizeof(T));
+    }
+  }
+
+  virtual size_t size() override { return data.size(); }
+
   std::vector<std::vector<T>> data;
-  int listCountBytes;
+  int listCountBytes = -1;
 };
 
 inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::string typeStr, bool isList,
@@ -250,16 +283,73 @@ public:
     throw std::runtime_error("PLY parser: element " + name + " does not have property " + target);
   }
 
+  // This class owns newProp and will deallocate it when ready
+  void addProperty(Property* newProp) {
+
+    if (newProp->size() != count) {
+      throw std::runtime_error("PLY write: new property " + newProp->name + " has size which does not match element");
+    }
+
+    properties.push_back(std::shared_ptr<Property>(newProp));
+  }
+
+
+  void validate() {
+
+    // Make sure no properties have duplicate names, and no names have whitespace
+    for (size_t iP = 0; iP < properties.size(); iP++) {
+      for (char c : properties[iP]->name) {
+        if (std::isspace(c)) {
+          throw std::runtime_error("Ply validate: illegal whitespace in name " + properties[iP]->name);
+        }
+      }
+      for (size_t jP = iP + 1; jP < properties.size(); jP++) {
+        if (properties[iP]->name == properties[jP]->name) {
+          throw std::runtime_error("Ply validate: multiple properties with name " + properties[iP]->name);
+        }
+      }
+    }
+
+    // Make sure all properties have right length
+    for (size_t iP = 0; iP < properties.size(); iP++) {
+      if (properties[iP]->size() != count) {
+        throw std::runtime_error("Ply validate: property has wrong size. " + properties[iP]->name +
+                                 " does not match element size.");
+      }
+    }
+  }
+
   void writeHeader(std::ofstream& outStream) {
 
     outStream << "element " << name << " " << count << "\n";
 
-    for(std::shared_ptr<Property> p : properties) {
+    for (std::shared_ptr<Property> p : properties) {
       p->writeHeader(outStream);
     }
-
   }
 
+  void writeDataASCII(std::ofstream& outStream) {
+    // Question: what is the proper output for an element with no properties? Here, we write a blank line, so there is
+    // one line per element no matter what.
+    for (size_t iE = 0; iE < count; iE++) {
+      for (size_t iP = 0; iP < properties.size(); iP++) {
+        properties[iP]->writeDataASCII(outStream, iE);
+        if (iP < properties.size() - 1) {
+          outStream << " ";
+        }
+      }
+      outStream << "\n";
+    }
+  }
+
+
+  void writeDataBinary(std::ofstream& outStream) {
+    for (size_t iE = 0; iE < count; iE++) {
+      for (size_t iP = 0; iP < properties.size(); iP++) {
+        properties[iP]->writeDataBinary(outStream, iE);
+      }
+    }
+  }
 };
 
 // Some string helpers
@@ -301,47 +391,16 @@ inline bool startsWith(std::string input, std::string query) { return input.comp
 namespace {
 
 // A pointer for the smaller equivalent of a type (eg. when a double is requested a float works too, etc)
-template <class T>
-struct HalfSize {
-  bool isSmaller = false;
-  typedef T type;
-};
-
-template <>
-struct HalfSize<int64_t> {
-  bool isSmaller = true;
-  typedef int32_t type;
-};
-template <>
-struct HalfSize<int32_t> {
-  bool isSmaller = true;
-  typedef int16_t type;
-};
-template <>
-struct HalfSize<int16_t> {
-  bool isSmaller = true;
-  typedef int8_t type;
-};
-template <>
-struct HalfSize<uint64_t> {
-  bool isSmaller = true;
-  typedef uint32_t type;
-};
-template <>
-struct HalfSize<uint32_t> {
-  bool isSmaller = true;
-  typedef uint16_t type;
-};
-template <>
-struct HalfSize<uint16_t> {
-  bool isSmaller = true;
-  typedef uint8_t type;
-};
-template <>
-struct HalfSize<double> {
-  bool isSmaller = true;
-  typedef float type;
-};
+// clang-format off
+template <class T> struct HalfSize { bool isSmaller = false; typedef T type; };
+template <> struct HalfSize<int64_t > { bool isSmaller = true; typedef int32_t  type; };
+template <> struct HalfSize<int32_t > { bool isSmaller = true; typedef int16_t  type; };
+template <> struct HalfSize<int16_t > { bool isSmaller = true; typedef int8_t   type; };
+template <> struct HalfSize<uint64_t> { bool isSmaller = true; typedef uint32_t type; };
+template <> struct HalfSize<uint32_t> { bool isSmaller = true; typedef uint16_t type; };
+template <> struct HalfSize<uint16_t> { bool isSmaller = true; typedef uint8_t  type; };
+template <> struct HalfSize<double  > { bool isSmaller = true; typedef float    type; };
+// clang-format on
 }
 
 
@@ -386,20 +445,63 @@ public:
     }
   }
 
+  void validate() {
+
+    for (size_t iE = 0; iE < elements.size(); iE++) {
+      for (char c : elements[iE].name) {
+        if (std::isspace(c)) {
+          throw std::runtime_error("Ply validate: illegal whitespace in element name " + elements[iE].name);
+        }
+      }
+      for (size_t jE = iE + 1; jE < elements.size(); jE++) {
+        if (elements[iE].name == elements[jE].name) {
+          throw std::runtime_error("Ply validate: duplcate element name " + elements[iE].name);
+        }
+      }
+    }
+
+    // Do a quick validation sanity check
+    for (Element& e : elements) {
+      e.validate();
+    }
+  }
 
   void write(std::string filename) {
 
+    validate();
+
     // Open stream for writing
-    std::ofstream outStream(filename);
-    if(!outStream.good()) {
+    std::ofstream outStream(filename, std::ios::out | std::ios::binary);
+    if (!outStream.good()) {
       throw std::runtime_error("Ply writer: Could not open output file " + filename + " for writing");
     }
 
     writeHeader(outStream);
 
     // Write all elements
-
+    for (Element& e : elements) {
+      if (isBinary) {
+        e.writeDataBinary(outStream);
+      } else {
+        e.writeDataASCII(outStream);
+      }
+    }
   }
+
+  // ===  Helpers
+  Element& getElement(std::string target) {
+    for (Element& e : elements) {
+      if (e.name == target) return e;
+    }
+    throw std::runtime_error("PLY parser: no element with name: " + target);
+  }
+  bool hasElement(std::string target) {
+    for (Element& e : elements) {
+      if (e.name == target) return true;
+    }
+    return false;
+  }
+  void addElement(std::string name, size_t count) { elements.emplace_back(name, count); }
 
   // === Get data out of the representation
   template <class T>
@@ -460,25 +562,93 @@ public:
                                                   std::string indexPropertyName = "vertex_indices");
 
 
+  // Creates a vertex element (if doesn't already exist) and sets positions
+  void addVertexPositions(std::vector<std::array<double, 3>>& vertexPositions) {
+
+    std::string vertexName = "vertex";
+    size_t N = vertexPositions.size();
+
+    // Create the element
+    if (!hasElement(vertexName)) {
+      addElement(vertexName, N);
+    }
+
+    // De-interleave
+    std::vector<double> xPos(N);
+    std::vector<double> yPos(N);
+    std::vector<double> zPos(N);
+    for (size_t i = 0; i < vertexPositions.size(); i++) {
+      xPos[i] = vertexPositions[i][0];
+      yPos[i] = vertexPositions[i][1];
+      zPos[i] = vertexPositions[i][2];
+    }
+
+    // Store
+    getElement(vertexName).addProperty(new TypedProperty<double>("x", xPos));
+    getElement(vertexName).addProperty(new TypedProperty<double>("y", yPos));
+    getElement(vertexName).addProperty(new TypedProperty<double>("z", zPos));
+  }
+
+  // Create a vertex element (if doesn't already exist) and sets colors as uchars
+  void addVertexColors(std::vector<std::array<double, 3>>& colors) {
+
+    std::string vertexName = "vertex";
+    size_t N = colors.size();
+
+    // Create the element
+    if (!hasElement(vertexName)) {
+      addElement(vertexName, N);
+    }
+
+    auto toChar = [](double v) {
+      if (v < 0.0) v = 0.0;
+      if (v > 1.0) v = 1.0;
+      return static_cast<unsigned char>(v / 255.);
+    };
+
+    // De-interleave
+    std::vector<unsigned char> r(N);
+    std::vector<unsigned char> g(N);
+    std::vector<unsigned char> b(N);
+    for (size_t i = 0; i < colors.size(); i++) {
+      r[i] = toChar(colors[i][0]);
+      g[i] = toChar(colors[i][1]);
+      b[i] = toChar(colors[i][2]);
+    }
+
+    // Store
+    getElement(vertexName).addProperty(new TypedProperty<unsigned char>("red", r));
+    getElement(vertexName).addProperty(new TypedProperty<unsigned char>("green", g));
+    getElement(vertexName).addProperty(new TypedProperty<unsigned char>("blue", b));
+  }
+
+
+  void addFaceIndices(std::vector<std::vector<size_t>>& indices) {
+
+    std::string faceName = "face";
+    size_t N = indices.size();
+
+    // Create the element
+    if (!hasElement(faceName)) {
+      addElement(faceName, N);
+    }
+
+    // Shrink type to int
+    std::vector<std::vector<int>> intInds;
+    for (std::vector<size_t>& l : indices) {
+      intInds.emplace_back(l.begin(), l.end());
+    }
+
+    // Store
+    getElement(faceName).addProperty(new TypedListProperty<int>("vertex_indices", intInds));
+  }
+
+
 private:
   std::vector<Element> elements;
   std::vector<std::string> comments;
   float version = 1.0;
   bool isBinary = false;
-
-  // Helpers
-  Element& getElement(std::string target) {
-    for (Element& e : elements) {
-      if (e.name == target) return e;
-    }
-    throw std::runtime_error("PLY parser: no element with name: " + target);
-  }
-  bool hasElement(std::string target) {
-    for (Element& e : elements) {
-      if (e.name == target) return true;
-    }
-    return false;
-  }
 
 
   // === Reading ===
@@ -634,7 +804,7 @@ private:
 
       for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
         for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-          elem.properties[iP]->readNext(inStream);// clang-format off
+          elem.properties[iP]->readNext(inStream); // clang-format off
         }
       }
     }
