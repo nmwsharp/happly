@@ -572,8 +572,7 @@ public:
     return result;
   }
 
-  std::vector<std::vector<size_t>> getFaceIndices(std::string faceElementName = "face",
-                                                  std::string indexPropertyName = "vertex_indices");
+  std::vector<std::vector<size_t>> getFaceIndices();
 
 
   // Creates a vertex element (if doesn't already exist) and sets positions
@@ -818,7 +817,7 @@ private:
 
       for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
         for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-          elem.properties[iP]->readNext(inStream); // clang-format off
+          elem.properties[iP]->readNext(inStream);
         }
       }
     }
@@ -842,7 +841,8 @@ private:
       return getDataFromPropertyRecursive<D, typename HalfSize<T>::type>(prop);
     } else {
       // No smaller type to try, failure
-      throw std::runtime_error("PLY parser: property " + prop->name + " cannot be coerced to requested type. Has type " + prop->propertyTypeName());
+      throw std::runtime_error("PLY parser: property " + prop->name +
+                               " cannot be coerced to requested type. Has type " + prop->propertyTypeName());
     }
   }
 
@@ -884,23 +884,22 @@ private:
       outStream << "ascii";
     }
     std::streamsize initPrecision = std::cout.precision();
-    outStream << std::setprecision(1) << std::fixed << version << std::defaultfloat
-                                                         << std::setprecision(initPrecision) << "\n";
+    outStream << std::setprecision(1) << std::fixed << version << std::defaultfloat << std::setprecision(initPrecision)
+              << "\n";
 
     // Write comments
-    for(std::string& comment : comments) {
+    for (std::string& comment : comments) {
       outStream << "comment " << comment << "\n";
     }
 
     // Write elements (and their properties)
-    for(Element& e : elements) {
+    for (Element& e : elements) {
       e.writeHeader(outStream);
     }
 
     // End header
     outStream << "end_header\n";
   }
-
 };
 
 // Specialization for size_t. It's useful to always look for indices as size_t, but some files store them with a signed
@@ -941,8 +940,16 @@ inline std::vector<std::vector<size_t>> PLYData::getListProperty(std::string ele
 }
 
 
-inline std::vector<std::vector<size_t>> PLYData::getFaceIndices(std::string faceElementName,
-                                                                std::string indexPropertyName) {
-  return getListProperty<size_t>(faceElementName, indexPropertyName);
+inline std::vector<std::vector<size_t>> PLYData::getFaceIndices() {
+  for (std::string f : std::vector<std::string>{"face"}) {
+    for (std::string p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
+      try {
+        return getListProperty<size_t>(f, p);
+      } catch (std::runtime_error e) {
+        // that's fine
+      }
+    }
+  }
+  throw std::runtime_error("PLY parser: could not find vertex indices attribute in any common form");
 }
 }
