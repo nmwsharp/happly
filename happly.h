@@ -95,6 +95,12 @@ public:
   std::vector<T> data;
 };
 
+template <>
+inline void TypedProperty<unsigned char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+  outStream << (int)data[iElement];
+}
+
+
 template <class T>
 class TypedListProperty : public Property {
 
@@ -421,7 +427,7 @@ template <> struct HalfSize<double  > { bool isSmaller = true; typedef float    
 class PLYData {
 
 public:
-  PLYData();
+  PLYData(){};
 
   // Read from file
   PLYData(std::string filename, bool verbose = false) {
@@ -616,7 +622,7 @@ public:
     auto toChar = [](double v) {
       if (v < 0.0) v = 0.0;
       if (v > 1.0) v = 1.0;
-      return static_cast<unsigned char>(v / 255.);
+      return static_cast<unsigned char>(v * 255.);
     };
 
     // De-interleave
@@ -881,7 +887,7 @@ private:
     if (isBinary) {
       outStream << "binary_little_endian ";
     } else {
-      outStream << "ascii";
+      outStream << "ascii ";
     }
     std::streamsize initPrecision = std::cout.precision();
     outStream << std::setprecision(1) << std::fixed << version << std::defaultfloat << std::setprecision(initPrecision)
