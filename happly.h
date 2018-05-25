@@ -35,6 +35,22 @@ template<> inline std::string typeName<float>() { return "float"; }
 template<> inline std::string typeName<double>() { return "double"; }
 // clang-format on
 
+// Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
+namespace {
+
+// A pointer for the smaller equivalent of a type (eg. when a double is requested a float works too, etc)
+// clang-format off
+template <class T> struct HalfSize              { bool hasChildType = false;   typedef T                    type; };
+template <> struct HalfSize<long long>          { bool hasChildType = true;    typedef int                  type; };
+template <> struct HalfSize<int>                { bool hasChildType = true;    typedef short                type; };
+template <> struct HalfSize<short>              { bool hasChildType = true;    typedef char                 type; };
+template <> struct HalfSize<size_t>             { bool hasChildType = true;    typedef unsigned long long   type; };
+template <> struct HalfSize<unsigned long long> { bool hasChildType = true;    typedef unsigned int         type; };
+template <> struct HalfSize<unsigned int>       { bool hasChildType = true;    typedef unsigned short       type; };
+template <> struct HalfSize<unsigned short>     { bool hasChildType = true;    typedef unsigned char        type; };
+template <> struct HalfSize<double>             { bool hasChildType = true;    typedef float                type; };
+// clang-format on
+} // namespace
 
 class Property {
 
@@ -371,7 +387,7 @@ public:
   size_t count;
   std::vector<std::unique_ptr<Property>> properties;
 
-  std::unique_ptr<Property>& getProperty(std::string target) {
+  std::unique_ptr<Property>& getPropertyPtr(std::string target) {
     for (std::unique_ptr<Property>& prop : properties) {
       if (prop->name == target) {
         return prop;
@@ -381,19 +397,17 @@ public:
   }
 
   template <class T>
-  void addProperty(std::string propertyName, std::vector<T>& data, bool removeExisting = true) {
+  void addProperty(std::string propertyName, std::vector<T>& data) {
 
     if (data.size() != count) {
       throw std::runtime_error("PLY write: new property " + propertyName + " has size which does not match element");
     }
 
     // If there is already some property with this name, remove it
-    if (removeExisting) {
-      for (size_t i = 0; i < properties.size(); i++) {
-        if (properties[i]->name == propertyName) {
-          properties.erase(properties.begin() + i);
-          i--;
-        }
+    for (size_t i = 0; i < properties.size(); i++) {
+      if (properties[i]->name == propertyName) {
+        properties.erase(properties.begin() + i);
+        i--;
       }
     }
 
@@ -401,24 +415,44 @@ public:
   }
 
   template <class T>
-  void addListProperty(std::string propertyName, std::vector<std::vector<T>>& data, bool removeExisting = true) {
+  void addListProperty(std::string propertyName, std::vector<std::vector<T>>& data) {
 
     if (data.size() != count) {
       throw std::runtime_error("PLY write: new property " + propertyName + " has size which does not match element");
     }
 
     // If there is already some property with this name, remove it
-    if (removeExisting) {
-      for (size_t i = 0; i < properties.size(); i++) {
-        if (properties[i]->name == propertyName) {
-          properties.erase(properties.begin() + i);
-          i--;
-        }
+    for (size_t i = 0; i < properties.size(); i++) {
+      if (properties[i]->name == propertyName) {
+        properties.erase(properties.begin() + i);
+        i--;
       }
     }
 
     properties.push_back(std::unique_ptr<Property>(new TypedListProperty<T>(propertyName, data)));
   }
+
+  // === Get data out of the representation
+  template <class T>
+  std::vector<T> getProperty(std::string propertyName) {
+
+    // Find the property
+    std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
+
+    // Get a copy of the data with auto-promoting type magic
+    return getDataFromPropertyRecursive<T, T>(prop.get());
+  }
+
+  template <class T>
+  std::vector<std::vector<T>> getListProperty(std::string propertyName) {
+
+    // Find the property
+    std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
+
+    // Get a copy of the data with auto-promoting type magic
+    return getDataFromListPropertyRecursive<T, T>(prop.get());
+  }
+
 
   void validate() {
 
@@ -476,6 +510,50 @@ public:
       }
     }
   }
+
+  template <class D, class T>
+  std::vector<D> getDataFromPropertyRecursive(Property* prop) {
+
+    { // Try to return data of type D from a property of type T
+      TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop);
+      if (castedProp) {
+        // Succeeded, return a buffer of the data (copy while converting type)
+        return std::vector<D>(castedProp->data.begin(), castedProp->data.end());
+      }
+    }
+
+    HalfSize<T> halfType;
+    if (halfType.hasChildType) {
+      return getDataFromPropertyRecursive<D, typename HalfSize<T>::type>(prop);
+    } else {
+      // No smaller type to try, failure
+      throw std::runtime_error("PLY parser: property " + prop->name +
+                               " cannot be coerced to requested type. Has type " + prop->propertyTypeName());
+    }
+  }
+
+
+  template <class D, class T>
+  std::vector<std::vector<D>> getDataFromListPropertyRecursive(Property* prop) {
+
+    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop);
+    if (castedProp) {
+      // Succeeded, return a buffer of the data (copy while converting type)
+      std::vector<std::vector<D>> result;
+      for (std::vector<T>& subList : castedProp->data) {
+        result.emplace_back(subList.begin(), subList.end());
+      }
+      return result;
+    }
+
+    HalfSize<T> halfType;
+    if (halfType.hasChildType) {
+      return getDataFromListPropertyRecursive<D, typename HalfSize<T>::type>(prop);
+    } else {
+      // No smaller type to try, failure
+      throw std::runtime_error("PLY parser: list property " + prop->name + " cannot be coerced to requested type");
+    }
+  }
 };
 
 // Some string helpers
@@ -512,22 +590,6 @@ inline std::vector<std::string> tokenSplit(std::string input) {
 
 inline bool startsWith(std::string input, std::string query) { return input.compare(0, query.length(), query) == 0; }
 }; // namespace
-
-// Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
-namespace {
-
-// A pointer for the smaller equivalent of a type (eg. when a double is requested a float works too, etc)
-// clang-format off
-template <class T> struct HalfSize { bool isSmaller = false; typedef T type; };
-template <> struct HalfSize<int64_t > { bool isSmaller = true; typedef int32_t  type; };
-template <> struct HalfSize<int32_t > { bool isSmaller = true; typedef int16_t  type; };
-template <> struct HalfSize<int16_t > { bool isSmaller = true; typedef int8_t   type; };
-template <> struct HalfSize<uint64_t> { bool isSmaller = true; typedef uint32_t type; };
-template <> struct HalfSize<uint32_t> { bool isSmaller = true; typedef uint16_t type; };
-template <> struct HalfSize<uint16_t> { bool isSmaller = true; typedef uint8_t  type; };
-template <> struct HalfSize<double  > { bool isSmaller = true; typedef float    type; };
-// clang-format on
-} // namespace
 
 
 class PLYData {
@@ -630,34 +692,12 @@ public:
   }
   void addElement(std::string name, size_t count) { elements.emplace_back(name, count); }
 
-  // === Get data out of the representation
-  template <class T>
-  std::vector<T> getProperty(std::string elementName, std::string propertyName) {
-
-    // Find the property
-    std::unique_ptr<Property>& prop = getElement(elementName).getProperty(propertyName);
-
-    // Get a copy of the data with auto-promoting type magic
-    return getDataFromPropertyRecursive<T, T>(prop.get());
-  }
-
-  template <class T>
-  std::vector<std::vector<T>> getListProperty(std::string elementName, std::string propertyName) {
-
-    // Find the property
-    std::unique_ptr<Property>& prop = getElement(elementName).getProperty(propertyName);
-
-    // Get a copy of the data with auto-promoting type magic
-    return getDataFromListPropertyRecursive<T, T>(prop.get());
-  }
-
-
   // === Common-case helpers
   std::vector<std::array<double, 3>> getVertexPositions(std::string vertexElementName = "vertex") {
 
-    std::vector<double> xPos = getProperty<double>(vertexElementName, "x");
-    std::vector<double> yPos = getProperty<double>(vertexElementName, "y");
-    std::vector<double> zPos = getProperty<double>(vertexElementName, "z");
+    std::vector<double> xPos = getElement(vertexElementName).getProperty<double>("x");
+    std::vector<double> yPos = getElement(vertexElementName).getProperty<double>("y");
+    std::vector<double> zPos = getElement(vertexElementName).getProperty<double>("z");
 
     std::vector<std::array<double, 3>> result(xPos.size());
     for (size_t i = 0; i < result.size(); i++) {
@@ -671,9 +711,9 @@ public:
 
   std::vector<std::array<unsigned char, 3>> getVertexColors(std::string vertexElementName = "vertex") {
 
-    std::vector<unsigned char> r = getProperty<unsigned char>(vertexElementName, "red");
-    std::vector<unsigned char> g = getProperty<unsigned char>(vertexElementName, "green");
-    std::vector<unsigned char> b = getProperty<unsigned char>(vertexElementName, "blue");
+    std::vector<unsigned char> r = getElement(vertexElementName).getProperty<unsigned char>("red");
+    std::vector<unsigned char> g = getElement(vertexElementName).getProperty<unsigned char>("green");
+    std::vector<unsigned char> b = getElement(vertexElementName).getProperty<unsigned char>("blue");
 
     std::vector<std::array<unsigned char, 3>> result(r.size());
     for (size_t i = 0; i < result.size(); i++) {
@@ -938,53 +978,6 @@ private:
     }
   }
 
-  // === Get Data ===
-
-  template <class D, class T>
-  std::vector<D> getDataFromPropertyRecursive(Property* prop) {
-
-    { // Try to return data of type D from a property of type T
-      TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop);
-      if (castedProp) {
-        // Succeeded, return a buffer of the data (copy while converting type)
-        return std::vector<D>(castedProp->data.begin(), castedProp->data.end());
-      }
-    }
-
-    HalfSize<T> halfType;
-    if (halfType.isSmaller) {
-      return getDataFromPropertyRecursive<D, typename HalfSize<T>::type>(prop);
-    } else {
-      // No smaller type to try, failure
-      throw std::runtime_error("PLY parser: property " + prop->name +
-                               " cannot be coerced to requested type. Has type " + prop->propertyTypeName());
-    }
-  }
-
-
-  template <class D, class T>
-  std::vector<std::vector<D>> getDataFromListPropertyRecursive(Property* prop) {
-
-    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop);
-    if (castedProp) {
-      // Succeeded, return a buffer of the data (copy while converting type)
-      std::vector<std::vector<D>> result;
-      for (std::vector<T>& subList : castedProp->data) {
-        result.emplace_back(subList.begin(), subList.end());
-      }
-      return result;
-    }
-
-    HalfSize<T> halfType;
-    if (halfType.isSmaller) {
-      return getDataFromListPropertyRecursive<D, typename HalfSize<T>::type>(prop);
-    } else {
-      // No smaller type to try, failure
-      throw std::runtime_error("PLY parser: list property " + prop->name + " cannot be coerced to requested type");
-    }
-  }
-
-
   // === Writing ===
   void writeHeader(std::ofstream& outStream) {
 
@@ -1021,10 +1014,10 @@ private:
 // type (usually int).
 // This automatically handles that case.
 template <>
-inline std::vector<std::vector<size_t>> PLYData::getListProperty(std::string elementName, std::string propertyName) {
+inline std::vector<std::vector<size_t>> Element::getListProperty(std::string propertyName) {
 
   // Find the property
-  std::unique_ptr<Property>& prop = getElement(elementName).getProperty(propertyName);
+  std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
 
   // Get a copy of the data with auto-promoting type magic
   try {
@@ -1032,7 +1025,7 @@ inline std::vector<std::vector<size_t>> PLYData::getListProperty(std::string ele
   } catch (std::runtime_error orig_e) {
 
     try {
-      std::vector<std::vector<int>> intResult = getListProperty<int>(elementName, propertyName);
+      std::vector<std::vector<int>> intResult = getListProperty<int>(propertyName);
 
       // Check sign while copying
       std::vector<std::vector<size_t>> copiedResult;
@@ -1059,7 +1052,7 @@ inline std::vector<std::vector<size_t>> PLYData::getFaceIndices() {
   for (std::string f : std::vector<std::string>{"face"}) {
     for (std::string p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
       try {
-        return getListProperty<size_t>(f, p);
+        return getElement(f).getListProperty<size_t>(p);
       } catch (std::runtime_error e) {
         // that's fine
       }
