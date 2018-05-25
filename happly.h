@@ -171,7 +171,7 @@ public:
   int listCountBytes = -1;
 };
 
-inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::string typeStr, bool isList,
+inline std::unique_ptr<Property> createPropertyWithType(std::string name, std::string typeStr, bool isList,
                                                         std::string listCountTypeStr) {
 
   // == Figure out how many bytes the list count field has, if this is a list type
@@ -197,27 +197,27 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 8 bit unsigned
   if (typeStr == "uchar" || typeStr == "uint8") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<unsigned char>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<unsigned char>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<unsigned char>(name));
+      return std::unique_ptr<Property>(new TypedProperty<unsigned char>(name));
     }
   }
 
   // 16 bit unsigned
   else if (typeStr == "ushort" || typeStr == "uint16") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<unsigned short>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<unsigned short>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<unsigned short>(name));
+      return std::unique_ptr<Property>(new TypedProperty<unsigned short>(name));
     }
   }
 
   // 32 bit unsigned
   else if (typeStr == "uint" || typeStr == "uint32") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<unsigned int>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<unsigned int>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<unsigned int>(name));
+      return std::unique_ptr<Property>(new TypedProperty<unsigned int>(name));
     }
   }
 
@@ -226,27 +226,27 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 8 bit signed
   if (typeStr == "char" || typeStr == "int8") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<char>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<char>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<char>(name));
+      return std::unique_ptr<Property>(new TypedProperty<char>(name));
     }
   }
 
   // 16 bit signed
   else if (typeStr == "short" || typeStr == "int16") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<short>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<short>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<short>(name));
+      return std::unique_ptr<Property>(new TypedProperty<short>(name));
     }
   }
 
   // 32 bit signed
   else if (typeStr == "int" || typeStr == "int32") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<int>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<int>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<int>(name));
+      return std::unique_ptr<Property>(new TypedProperty<int>(name));
     }
   }
 
@@ -255,18 +255,18 @@ inline std::shared_ptr<Property> createPropertyWithType(std::string name, std::s
   // 32 bit float
   else if (typeStr == "float" || typeStr == "float32") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<float>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<float>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<float>(name));
+      return std::unique_ptr<Property>(new TypedProperty<float>(name));
     }
   }
 
   // 64 bit float
   else if (typeStr == "double" || typeStr == "float64") {
     if (isList) {
-      return std::shared_ptr<Property>(new TypedListProperty<double>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<double>(name, listCountBytes));
     } else {
-      return std::shared_ptr<Property>(new TypedProperty<double>(name));
+      return std::unique_ptr<Property>(new TypedProperty<double>(name));
     }
   }
 
@@ -282,10 +282,10 @@ public:
 
   std::string name;
   size_t count;
-  std::vector<std::shared_ptr<Property>> properties;
+  std::vector<std::unique_ptr<Property>> properties;
 
-  std::shared_ptr<Property> getProperty(std::string target) {
-    for (std::shared_ptr<Property> prop : properties) {
+  std::unique_ptr<Property>& getProperty(std::string target) {
+    for (std::unique_ptr<Property>& prop : properties) {
       if (prop->name == target) {
         return prop;
       }
@@ -310,7 +310,7 @@ public:
       }
     }
 
-    properties.push_back(std::shared_ptr<Property>(newProp));
+    properties.push_back(std::unique_ptr<Property>(newProp));
   }
 
 
@@ -343,7 +343,7 @@ public:
 
     outStream << "element " << name << " " << count << "\n";
 
-    for (std::shared_ptr<Property> p : properties) {
+    for (std::unique_ptr<Property>& p : properties) {
       p->writeHeader(outStream);
     }
   }
@@ -528,7 +528,7 @@ public:
   std::vector<T> getProperty(std::string elementName, std::string propertyName) {
 
     // Find the property
-    std::shared_ptr<Property> prop = getElement(elementName).getProperty(propertyName);
+    std::unique_ptr<Property>& prop = getElement(elementName).getProperty(propertyName);
 
     // Get a copy of the data with auto-promoting type magic
     return getDataFromPropertyRecursive<T, T>(prop.get());
@@ -538,7 +538,7 @@ public:
   std::vector<std::vector<T>> getListProperty(std::string elementName, std::string propertyName) {
 
     // Find the property
-    std::shared_ptr<Property> prop = getElement(elementName).getProperty(propertyName);
+    std::unique_ptr<Property>& prop = getElement(elementName).getProperty(propertyName);
 
     // Get a copy of the data with auto-promoting type magic
     return getDataFromListPropertyRecursive<T, T>(prop.get());
@@ -915,7 +915,7 @@ template <>
 inline std::vector<std::vector<size_t>> PLYData::getListProperty(std::string elementName, std::string propertyName) {
 
   // Find the property
-  std::shared_ptr<Property> prop = getElement(elementName).getProperty(propertyName);
+  std::unique_ptr<Property>& prop = getElement(elementName).getProperty(propertyName);
 
   // Get a copy of the data with auto-promoting type magic
   try {
