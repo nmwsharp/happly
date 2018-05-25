@@ -956,6 +956,6 @@ inline std::vector<std::vector<size_t>> PLYData::getFaceIndices() {
       }
     }
   }
-  throw std::runtime_error("PLY parser: could not find vertex indices attribute in any common form");
+  throw std::runtime_error("PLY parser: could not find vertex indices attribute under any common name");
 }
 }
