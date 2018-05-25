@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.1)
 
-project(happly)
+project(happly-test)
 
 ### Policy settings
 cmake_policy(SET CMP0054 NEW)   # don't implicitly dereference inside if()
+
+### Recurse in to gtest subdir
+add_subdirectory("googletest")
 
 ### Compile options
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -43,9 +46,11 @@ else()
 endif()
 
 # Demo app
-add_executable(reader
-               reader.cpp
+add_executable(ply-test
+               main_test.cpp
               )
 
-target_include_directories(reader PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_link_libraries(ply-test gtest)
+
+target_include_directories(ply-test PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 

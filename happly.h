@@ -38,6 +38,7 @@ class Property {
 
 public:
   Property(std::string name_) : name(name_){};
+  virtual ~Property(){};
 
   std::string name;
 
@@ -63,6 +64,7 @@ class TypedProperty : public Property {
 public:
   TypedProperty(std::string name_) : Property(name_){};
   TypedProperty(std::string name_, std::vector<T>& data_) : Property(name_), data(data_){};
+  virtual ~TypedProperty() override{};
 
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) override {
     T val;
@@ -82,7 +84,10 @@ public:
     outStream << "property " << typeName<T>() << " " << name << "\n";
   }
 
-  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override { outStream << data[iElement]; }
+  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override { 
+    outStream.precision(std::numeric_limits<T>::max_digits10);
+    outStream << data[iElement];
+  }
 
   virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) override {
     outStream.write((char*)&data[iElement], sizeof(T));
@@ -107,6 +112,8 @@ class TypedListProperty : public Property {
 public:
   TypedListProperty(std::string name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_){};
   TypedListProperty(std::string name_, std::vector<std::vector<T>>& data_) : Property(name_), data(data_){};
+
+  virtual ~TypedListProperty() override{};
 
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) override {
 
@@ -150,6 +157,7 @@ public:
   virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
     outStream << elemList.size();
+    outStream.precision(std::numeric_limits<T>::max_digits10);
     for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
       outStream << " " << elemList[iEntry];
     }
@@ -405,7 +413,7 @@ inline std::vector<std::string> tokenSplit(std::string input) {
 }
 
 inline bool startsWith(std::string input, std::string query) { return input.compare(0, query.length(), query) == 0; }
-};
+}; // namespace
 
 // Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
 namespace {
@@ -421,7 +429,7 @@ template <> struct HalfSize<uint32_t> { bool isSmaller = true; typedef uint16_t 
 template <> struct HalfSize<uint16_t> { bool isSmaller = true; typedef uint8_t  type; };
 template <> struct HalfSize<double  > { bool isSmaller = true; typedef float    type; };
 // clang-format on
-}
+} // namespace
 
 
 class PLYData {
@@ -432,10 +440,10 @@ public:
   // Read from file
   PLYData(std::string filename, bool verbose = false) {
 
-    using std::vector;
-    using std::string;
     using std::cout;
     using std::endl;
+    using std::string;
+    using std::vector;
 
     if (verbose) cout << "PLY parser: Reading ply file: " << filename << endl;
 
@@ -674,10 +682,10 @@ private:
 
   void parseHeader(std::ifstream& inStream, bool verbose) {
 
-    using std::vector;
-    using std::string;
     using std::cout;
     using std::endl;
+    using std::string;
+    using std::vector;
 
     // First two lines are predetermined
     { // First line is magic constant
@@ -785,8 +793,8 @@ private:
 
   void parseASCII(std::ifstream& inStream, bool verbose) {
 
-    using std::vector;
     using std::string;
+    using std::vector;
 
     // Read all elements
     for (Element& elem : elements) {
@@ -811,8 +819,8 @@ private:
 
   void parseBinary(std::ifstream& inStream, bool verbose) {
 
-    using std::vector;
     using std::string;
+    using std::vector;
 
     // Read all elements
     for (Element& elem : elements) {
@@ -958,4 +966,4 @@ inline std::vector<std::vector<size_t>> PLYData::getFaceIndices() {
   }
   throw std::runtime_error("PLY parser: could not find vertex indices attribute under any common name");
 }
-}
+} // namespace happly
