@@ -102,10 +102,32 @@ public:
   std::vector<T> data;
 };
 
+// outstream doesn't do what we want with chars
 template <>
 inline void TypedProperty<unsigned char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
   outStream << (int)data[iElement];
 }
+template <>
+inline void TypedProperty<char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+  outStream << (int)data[iElement];
+}
+template <>
+inline void TypedProperty<unsigned char>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+  std::istringstream iss(tokens[currEntry]);
+  int intVal;
+  iss >> intVal;
+  data.push_back((unsigned char)intVal);
+  currEntry++;
+}
+template <>
+inline void TypedProperty<char>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+  std::istringstream iss(tokens[currEntry]);
+  int intVal;
+  iss >> intVal;
+  data.push_back((char)intVal);
+  currEntry++;
+}
+
 
 
 template <class T>
@@ -303,26 +325,45 @@ public:
     throw std::runtime_error("PLY parser: element " + name + " does not have property " + target);
   }
 
-  // This class owns newProp and will deallocate it when ready
-  void addProperty(Property* newProp, bool removeExisting = true) {
+  template <class T>
+  void addProperty(std::string propertyName, std::vector<T>& data, bool removeExisting = true) {
 
-    if (newProp->size() != count) {
-      throw std::runtime_error("PLY write: new property " + newProp->name + " has size which does not match element");
+    if (data.size() != count) {
+      throw std::runtime_error("PLY write: new property " + propertyName + " has size which does not match element");
     }
 
     // If there is already some property with this name, remove it
     if (removeExisting) {
       for (size_t i = 0; i < properties.size(); i++) {
-        if (properties[i]->name == newProp->name) {
+        if (properties[i]->name == propertyName) {
           properties.erase(properties.begin() + i);
           i--;
         }
       }
     }
 
-    properties.push_back(std::unique_ptr<Property>(newProp));
+    properties.push_back(std::unique_ptr<Property>(new TypedProperty<T>(propertyName, data)));
   }
 
+  template <class T>
+  void addListProperty(std::string propertyName, std::vector<std::vector<T>>& data, bool removeExisting = true) {
+
+    if (data.size() != count) {
+      throw std::runtime_error("PLY write: new property " + propertyName + " has size which does not match element");
+    }
+
+    // If there is already some property with this name, remove it
+    if (removeExisting) {
+      for (size_t i = 0; i < properties.size(); i++) {
+        if (properties[i]->name == propertyName) {
+          properties.erase(properties.begin() + i);
+          i--;
+        }
+      }
+    }
+
+    properties.push_back(std::unique_ptr<Property>(new TypedListProperty<T>(propertyName, data)));
+  }
 
   void validate() {
 
@@ -614,9 +655,9 @@ public:
     }
 
     // Store
-    getElement(vertexName).addProperty(new TypedProperty<double>("x", xPos));
-    getElement(vertexName).addProperty(new TypedProperty<double>("y", yPos));
-    getElement(vertexName).addProperty(new TypedProperty<double>("z", zPos));
+    getElement(vertexName).addProperty<double>("x", xPos);
+    getElement(vertexName).addProperty<double>("y", yPos);
+    getElement(vertexName).addProperty<double>("z", zPos);
   }
 
   // Create a vertex element (if doesn't already exist) and sets colors as uchars
@@ -647,9 +688,9 @@ public:
     }
 
     // Store
-    getElement(vertexName).addProperty(new TypedProperty<unsigned char>("red", r));
-    getElement(vertexName).addProperty(new TypedProperty<unsigned char>("green", g));
-    getElement(vertexName).addProperty(new TypedProperty<unsigned char>("blue", b));
+    getElement(vertexName).addProperty<unsigned char>("red", r);
+    getElement(vertexName).addProperty<unsigned char>("green", g);
+    getElement(vertexName).addProperty<unsigned char>("blue", b);
   }
 
 
@@ -670,7 +711,7 @@ public:
     }
 
     // Store
-    getElement(faceName).addProperty(new TypedListProperty<int>("vertex_indices", intInds));
+    getElement(faceName).addListProperty<int>("vertex_indices", intInds);
   }
 
 
