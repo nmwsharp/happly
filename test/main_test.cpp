@@ -8,7 +8,7 @@
 using std::cout;
 using std::endl;
 
-
+// === Test helpers
 void DoubleArrayVecEq(std::vector<std::array<double, 3>>& arr1, std::vector<std::array<double, 3>>& arr2) {
 
   EXPECT_EQ(arr1.size(), arr2.size());
@@ -20,7 +20,7 @@ void DoubleArrayVecEq(std::vector<std::array<double, 3>>& arr1, std::vector<std:
   }
 }
 
-// Test reading mesh-like files
+// === Test reading mesh-like files
 TEST(MeshTest, ReadWriteASCIIMesh) {
 
   // = Read in an interesting mesh file
@@ -51,7 +51,6 @@ TEST(MeshTest, ReadWriteASCIIMesh) {
   EXPECT_EQ(fInd, fInd2);
 }
 
-// Test reading mesh-like files
 TEST(MeshTest, ReadWriteBinaryMesh) {
 
   // = Read in an interesting mesh file
