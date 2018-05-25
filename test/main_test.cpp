@@ -662,6 +662,51 @@ TEST(TypedListReadWriteTest, ReadWriteDoubleBinary) {
 // === Test error and utility behavior
 
 // Errors get thrown
+TEST(ErrorTest, NonexistantElement) {
+  happly::PLYData emptyPly;
+  EXPECT_THROW(emptyPly.getElement("test_elem");, std::runtime_error);
+}
+
+TEST(ErrorTest, NonexistantProperty) {
+
+  happly::PLYData emptyPly;
+  emptyPly.addElement("test_elem", 11);
+
+  EXPECT_THROW(emptyPly.getElement("test_elem").getProperty("test_prop");, std::runtime_error);
+}
+
+TEST(ErrorTest, WrongSize) {
+
+  happly::PLYData emptyPly;
+  emptyPly.addElement("test_elem", 11);
+  std::vector<int> data{1,3,4};
+
+  EXPECT_THROW(emptyPly.getElement("test_elem").addProperty("bad_prop", data), std::runtime_error);
+}
+
+TEST(ErrorTest, WrongSizeList) {
+
+  happly::PLYData emptyPly;
+  emptyPly.addElement("test_elem", 11);
+  std::vector<std::vector<int>> data{{1},{3},{4,4}};
+
+  EXPECT_THROW(emptyPly.getElement("test_elem").addListProperty("bad_prop", data), std::runtime_error);
+}
+
+TEST(ErrorTest, WhiteSpaceInElementName) {
+  happly::PLYData ply;
+  ply.addElement("test elem", 11);
+  EXPECT_THROW(ply.validate(), std::runtime_error);
+}
+
+TEST(ErrorTest, WhiteSpaceInPropertyName) {
+  happly::PLYData ply;
+  ply.addElement("test_elem", 3);
+  std::vector<int> data{1,3,4};
+  ply.getElement("test_elem").addProperty("test prop", data);
+  EXPECT_THROW(ply.validate(), std::runtime_error);
+}
+
 
 // Removal
 
