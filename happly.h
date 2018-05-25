@@ -20,6 +20,8 @@
 
 namespace happly {
 
+enum class DataFormat { ASCII, Binary };
+
 // Type names
 // clang-format off
 template <typename T> std::string typeName() { return "unknown"; }
@@ -84,7 +86,7 @@ public:
     outStream << "property " << typeName<T>() << " " << name << "\n";
   }
 
-  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override { 
+  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
     outStream.precision(std::numeric_limits<T>::max_digits10);
     outStream << data[iElement];
   }
@@ -459,11 +461,11 @@ public:
 
 
     // === Parse data from a binary file
-    if (isBinary) {
+    if (inputDataFormat == DataFormat::Binary) {
       parseBinary(inStream, verbose);
     }
     // === Parse data from an ASCII file
-    else {
+    else if (inputDataFormat == DataFormat::ASCII) {
       parseASCII(inStream, verbose);
     }
 
@@ -494,7 +496,8 @@ public:
     }
   }
 
-  void write(std::string filename) {
+  void write(std::string filename, DataFormat format = DataFormat::ASCII) {
+    outputDataFormat = format;
 
     validate();
 
@@ -508,9 +511,9 @@ public:
 
     // Write all elements
     for (Element& e : elements) {
-      if (isBinary) {
+      if (outputDataFormat == DataFormat::Binary) {
         e.writeDataBinary(outStream);
-      } else {
+      } else if (outputDataFormat == DataFormat::ASCII) {
         e.writeDataASCII(outStream);
       }
     }
@@ -675,7 +678,9 @@ private:
   std::vector<Element> elements;
   std::vector<std::string> comments;
   float version = 1.0;
-  bool isBinary = false;
+
+  DataFormat inputDataFormat = DataFormat::ASCII;  // set when reading from a file
+  DataFormat outputDataFormat = DataFormat::ASCII; // option for writing files
 
 
   // === Reading ===
@@ -710,10 +715,10 @@ private:
 
       // ascii/binary
       if (typeStr == "ascii") {
-        isBinary = false;
+        inputDataFormat = DataFormat::ASCII;
         if (verbose) cout << "  - Type: ascii" << endl;
       } else if (typeStr == "binary_little_endian") {
-        isBinary = true;
+        inputDataFormat = DataFormat::Binary;
         if (verbose) cout << "  - Type: binary" << endl;
       } else if (typeStr == "binary_big_endian") {
         throw std::runtime_error("PLY parser: encountered scary big endian file. Don't know how to parse that");
@@ -892,9 +897,9 @@ private:
 
     // Type line
     outStream << "format ";
-    if (isBinary) {
+    if (outputDataFormat == DataFormat::Binary) {
       outStream << "binary_little_endian ";
-    } else {
+    } else if (outputDataFormat == DataFormat::ASCII) {
       outStream << "ascii ";
     }
     std::streamsize initPrecision = std::cout.precision();
