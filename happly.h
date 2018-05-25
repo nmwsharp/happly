@@ -129,7 +129,6 @@ inline void TypedProperty<char>::parseNext(std::vector<std::string>& tokens, siz
 }
 
 
-
 template <class T>
 class TypedListProperty : public Property {
 
@@ -202,6 +201,62 @@ public:
   std::vector<std::vector<T>> data;
   int listCountBytes = -1;
 };
+
+// outstream doesn't do what we want with chars
+template <>
+inline void TypedListProperty<unsigned char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+  std::vector<unsigned char>& elemList = data[iElement];
+  outStream << elemList.size();
+  outStream.precision(std::numeric_limits<unsigned char>::max_digits10);
+  for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
+    outStream << " " << (int)elemList[iEntry];
+  }
+}
+template <>
+inline void TypedListProperty<char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+  std::vector<char>& elemList = data[iElement];
+  outStream << elemList.size();
+  outStream.precision(std::numeric_limits<char>::max_digits10);
+  for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
+    outStream << " " << (int)elemList[iEntry];
+  }
+}
+template <>
+inline void TypedListProperty<unsigned char>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+
+  std::istringstream iss(tokens[currEntry]);
+  size_t count;
+  iss >> count;
+  currEntry++;
+
+  std::vector<unsigned char> thisVec;
+  for (size_t iCount = 0; iCount < count; iCount++) {
+    std::istringstream iss(tokens[currEntry]);
+    int intVal;
+    iss >> intVal;
+    thisVec.push_back((unsigned char)intVal);
+    currEntry++;
+  }
+  data.push_back(thisVec);
+}
+template <>
+inline void TypedListProperty<char>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+
+  std::istringstream iss(tokens[currEntry]);
+  size_t count;
+  iss >> count;
+  currEntry++;
+
+  std::vector<char> thisVec;
+  for (size_t iCount = 0; iCount < count; iCount++) {
+    std::istringstream iss(tokens[currEntry]);
+    int intVal;
+    iss >> intVal;
+    thisVec.push_back((char)intVal);
+    currEntry++;
+  }
+  data.push_back(thisVec);
+}
 
 inline std::unique_ptr<Property> createPropertyWithType(std::string name, std::string typeStr, bool isList,
                                                         std::string listCountTypeStr) {
