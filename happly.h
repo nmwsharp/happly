@@ -115,7 +115,7 @@ public:
   /**
    * @brief A string naming the type of the property
    *
-   * @return 
+   * @return
    */
   virtual std::string propertyTypeName() = 0;
 };
@@ -210,7 +210,7 @@ public:
   /**
    * @brief A string naming the type of the property
    *
-   * @return 
+   * @return
    */
   virtual std::string propertyTypeName() override { return typeName<T>(); }
 
@@ -368,7 +368,7 @@ public:
   /**
    * @brief A string naming the type of the property
    *
-   * @return 
+   * @return
    */
   virtual std::string propertyTypeName() override { return typeName<T>(); }
 
@@ -440,6 +440,16 @@ inline void TypedListProperty<char>::parseNext(std::vector<std::string>& tokens,
   data.push_back(thisVec);
 }
 
+/**
+ * @brief Helper function to construct a new property of the appropriate type.
+ *
+ * @param name The name of the property to construct.
+ * @param typeStr A string naming the type according to the format.
+ * @param isList Is this a plain property, or a list property?
+ * @param listCountTypeStr If a list property, the type of the count varible.
+ *
+ * @return A new Property with the proper type.
+ */
 inline std::unique_ptr<Property> createPropertyWithType(std::string name, std::string typeStr, bool isList,
                                                         std::string listCountTypeStr) {
 
@@ -544,15 +554,33 @@ inline std::unique_ptr<Property> createPropertyWithType(std::string name, std::s
   }
 }
 
+/**
+ * @brief An element (more properly an element type) in the .ply object. Tracks the name of the elemnt type (eg,
+ * "vertices"), the number of elements of that type (eg, 1244), and any properties associated with that element (eg,
+ * "position", "color").
+ */
 class Element {
 
 public:
+  /**
+   * @brief Create a new element type.
+   *
+   * @param name_ Name of the element type (eg, "vertices")
+   * @param count_ Number of instances of this element.
+   */
   Element(std::string name_, size_t count_) : name(name_), count(count_) {}
 
   std::string name;
   size_t count;
   std::vector<std::unique_ptr<Property>> properties;
 
+  /**
+   * @brief Low-level method to get a pointer to a property. Users probably don't need to call this.
+   *
+   * @param target The name of the property to get.
+   *
+   * @return A (unique_ptr) pointer to the property.
+   */
   std::unique_ptr<Property>& getPropertyPtr(std::string target) {
     for (std::unique_ptr<Property>& prop : properties) {
       if (prop->name == target) {
@@ -562,6 +590,13 @@ public:
     throw std::runtime_error("PLY parser: element " + name + " does not have property " + target);
   }
 
+  /**
+   * @brief Add a new (plain, not list) property for this element type.
+   *
+   * @tparam T The type of the property
+   * @param propertyName The name of the property
+   * @param data The data for the property. Must have the same length as the number of elements.
+   */
   template <class T>
   void addProperty(std::string propertyName, std::vector<T>& data) {
 
@@ -580,6 +615,13 @@ public:
     properties.push_back(std::unique_ptr<Property>(new TypedProperty<T>(propertyName, data)));
   }
 
+  /**
+   * @brief Add a new list property for this element type.
+   *
+   * @tparam T The type of the property (eg, "double" for a list of doubles)
+   * @param propertyName The name of the property
+   * @param data The data for the property. Outer vector must have the same length as the number of elements.
+   */
   template <class T>
   void addListProperty(std::string propertyName, std::vector<std::vector<T>>& data) {
 
@@ -598,7 +640,14 @@ public:
     properties.push_back(std::unique_ptr<Property>(new TypedListProperty<T>(propertyName, data)));
   }
 
-  // === Get data out of the representation
+  /**
+   * @brief Get a vector of a data from a property for this element. Automatically promotes to larger types. Throws if requested data is unavailable.
+   *
+   * @tparam T The type of data requested
+   * @param propertyName The name of the property to get.
+   *
+   * @return The data.
+   */
   template <class T>
   std::vector<T> getProperty(std::string propertyName) {
 
@@ -609,6 +658,14 @@ public:
     return getDataFromPropertyRecursive<T, T>(prop.get());
   }
 
+  /**
+   * @brief Get a vector of lists of data from a property for this element. Automatically promotes to larger types. Throws if requested data is unavailable.
+   *
+   * @tparam T The type of data requested
+   * @param propertyName The name of the property to get.
+   *
+   * @return The data.
+   */
   template <class T>
   std::vector<std::vector<T>> getListProperty(std::string propertyName) {
 
@@ -620,6 +677,9 @@ public:
   }
 
 
+  /**
+   * @brief Performs sanity checks on the element, throwing if any fail.
+   */
   void validate() {
 
     // Make sure no properties have duplicate names, and no names have whitespace
@@ -645,6 +705,11 @@ public:
     }
   }
 
+  /**
+   * @brief Writes out this element's information to the file header.
+   *
+   * @param outStream The stream to use.
+   */
   void writeHeader(std::ofstream& outStream) {
 
     outStream << "element " << name << " " << count << "\n";
@@ -654,6 +719,11 @@ public:
     }
   }
 
+  /**
+   * @brief (ASCII writing) Writes out all of the data for every element of this element type to the stream, including all contained properties.
+   *
+   * @param outStream The stream to write to.
+   */
   void writeDataASCII(std::ofstream& outStream) {
     // Question: what is the proper output for an element with no properties? Here, we write a blank line, so there is
     // one line per element no matter what.
@@ -669,6 +739,11 @@ public:
   }
 
 
+  /**
+   * @brief (binary writing) Writes out all of the data for every element of this element type to the stream, including all contained properties.
+   *
+   * @param outStream The stream to write to.
+   */
   void writeDataBinary(std::ofstream& outStream) {
     for (size_t iE = 0; iE < count; iE++) {
       for (size_t iP = 0; iP < properties.size(); iP++) {
@@ -677,6 +752,16 @@ public:
     }
   }
 
+  
+  /**
+   * @brief Helper function which does the hard work to implement type promotion for data getters. Throws if type conversion fails.
+   *
+   * @tparam D The desired output type
+   * @tparam T The current attempt for the actual type of the property
+   * @param prop The property to get (does not delete nor share pointer)
+   *
+   * @return The data, with the requested type
+   */
   template <class D, class T>
   std::vector<D> getDataFromPropertyRecursive(Property* prop) {
 
@@ -699,6 +784,15 @@ public:
   }
 
 
+  /**
+   * @brief Helper function which does the hard work to implement type promotion for list data getters. Throws if type conversion fails.
+   *
+   * @tparam D The desired output type
+   * @tparam T The current attempt for the actual type of the property
+   * @param prop The property to get (does not delete nor share pointer)
+   *
+   * @return The data, with the requested type
+   */
   template <class D, class T>
   std::vector<std::vector<D>> getDataFromListPropertyRecursive(Property* prop) {
 
