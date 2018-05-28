@@ -1089,11 +1089,42 @@ public:
     getElement(vertexName).addProperty<double>("y", yPos);
     getElement(vertexName).addProperty<double>("z", zPos);
   }
+  
+  /**
+   * @brief Common-case helper set mesh vertex colors. Creates a vertex element, if necessary.
+   *
+   * @param colors A vector of vertex colors (unsigned chars [0,255]).
+   */
+  void addVertexColors(std::vector<std::array<unsigned char, 3>>& colors) {
+
+    std::string vertexName = "vertex";
+    size_t N = colors.size();
+
+    // Create the element
+    if (!hasElement(vertexName)) {
+      addElement(vertexName, N);
+    }
+
+    // De-interleave
+    std::vector<unsigned char> r(N);
+    std::vector<unsigned char> g(N);
+    std::vector<unsigned char> b(N);
+    for (size_t i = 0; i < colors.size(); i++) {
+      r[i] = colors[i][0];
+      g[i] = colors[i][1];
+      b[i] = colors[i][2];
+    }
+
+    // Store
+    getElement(vertexName).addProperty<unsigned char>("red", r);
+    getElement(vertexName).addProperty<unsigned char>("green", g);
+    getElement(vertexName).addProperty<unsigned char>("blue", b);
+  }
 
   /**
    * @brief Common-case helper set mesh vertex colors. Creates a vertex element, if necessary.
    *
-   * @param vertexPositions A vector of vertex colors (unsigned chars [0,255]).
+   * @param colors A vector of vertex colors as floating point [0,1] values. Internally converted to [0,255] chars.
    */
   void addVertexColors(std::vector<std::array<double, 3>>& colors) {
 
