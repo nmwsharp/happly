@@ -46,7 +46,7 @@ else()
   message( FATAL_ERROR "Unrecognized compiler [${CMAKE_CXX_COMPILER_ID}]" )
 endif()
 
-# Demo app
+# Test executable
 add_executable(ply-test
                main_test.cpp
               )
@@ -54,4 +54,8 @@ add_executable(ply-test
 target_link_libraries(ply-test gtest)
 
 target_include_directories(ply-test PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+# Add cmake test target  ("make test")
+enable_testing()
+add_test(MainTest ply-test)
 
