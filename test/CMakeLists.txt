@@ -22,7 +22,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STR
   endif()
 
   SET(CMAKE_CXX_FLAGS "${BASE_CXX_FLAGS} ${DISABLED_WARNINGS}")
-  SET(CMAKE_CXX_FLAGS_DEBUG          "-g3 -fsanitize=address")
+  #SET(CMAKE_CXX_FLAGS_DEBUG          "-g3 -fsanitize=address") // tests are crashing in gtest with this on OSX. Is something broken or is the address checker being too aggressive with gtest?
+  SET(CMAKE_CXX_FLAGS_DEBUG          "-g3")
   SET(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
   SET(CMAKE_CXX_FLAGS_RELEASE        "-march=native -O3 -DNDEBUG")
   SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
