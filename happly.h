@@ -813,7 +813,8 @@ public:
 private:
   std::vector<Element> elements;
   std::vector<std::string> comments;
-  float version = 1.0;
+  const int majorVersion = 1; // I'll buy you a beer if these ever get bumped
+  const int minorVersion = 0;
 
   DataFormat inputDataFormat = DataFormat::ASCII;  // set when reading from a file
   DataFormat outputDataFormat = DataFormat::ASCII; // option for writing files
@@ -863,8 +864,10 @@ private:
       }
 
       // version
-      version = std::atof(versionStr.c_str());
-      if (verbose) cout << "  - Version: " << version << endl;
+      if (versionStr != "1.0") {
+        throw std::runtime_error("PLY parser: encountered file with version != 1.0. Don't know how to parse that");
+      }
+      if (verbose) cout << "  - Version: " << versionStr << endl;
     }
 
     // Consume header line by line
@@ -991,9 +994,9 @@ private:
     } else if (outputDataFormat == DataFormat::ASCII) {
       outStream << "ascii ";
     }
-    std::streamsize initPrecision = std::cout.precision();
-    outStream << std::setprecision(1) << std::fixed << version << std::defaultfloat << std::setprecision(initPrecision)
-              << "\n";
+
+    // Version number
+    outStream << majorVersion << "." << minorVersion << "\n";
 
     // Write comments
     for (std::string& comment : comments) {
