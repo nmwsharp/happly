@@ -6,23 +6,20 @@
  */
 
 #include <array>
-#include <cstddef>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <limits>
-#include <memory>
 #include <sstream>
 #include <string>
-#include <type_traits>
 #include <vector>
 
-
+// General namespace wrapping all Happly things.
 namespace happly {
 
+// Enum specifying binary or ASCII filetypes. Binary is always little-endian.
 enum class DataFormat { ASCII, Binary };
 
-// Type names
+// Type name strings
 // clang-format off
 template <typename T> std::string typeName() { return "unknown"; }
 template<> inline std::string typeName<char>() { return "char"; }
@@ -52,38 +49,107 @@ template <> struct HalfSize<double>             { bool hasChildType = true;    t
 // clang-format on
 } // namespace
 
+/**
+ * @brief A generic property, which is associated with some element. Can be plain Property or a ListProperty, of some
+ * type.  Generally, the user should not need to interact with these directly, but they are exposed in case someone
+ * wants to get clever.
+ */
 class Property {
 
 public:
+  /**
+   * @brief Create a new Property with the given name.
+   *
+   * @param name_
+   */
   Property(std::string name_) : name(name_){};
   virtual ~Property(){};
 
   std::string name;
 
-  // ASCII parsing
+  /**
+   * @brief (ASCII reading) Parse out the next value of this property from a list of tokens.
+   *
+   * @param tokens The list of property tokens for the element.
+   * @param currEntry Index in to tokens, updated after this property is read.
+   */
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) = 0;
 
-  // binary copying
+  /**
+   * @brief (binary reading) Copy the next value of this property from a stream of bits.
+   *
+   * @param stream Stream to read from.
+   */
   virtual void readNext(std::ifstream& stream) = 0;
 
-
+  /**
+   * @brief (reading) Write a header entry for this property.
+   *
+   * @param outStream Stream to write to.
+   */
   virtual void writeHeader(std::ofstream& outStream) = 0;
+
+  /**
+   * @brief (ASCII writing) write this property for some element to a stream in plaintext
+   *
+   * @param outStream Stream to write to.
+   * @param iElement index of the element to write.
+   */
   virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) = 0;
+
+  /**
+   * @brief (binary writing) copy the bits of this property for some element to a stream
+   *
+   * @param outStream Stream to write to.
+   * @param iElement index of the element to write.
+   */
   virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) = 0;
 
-
+  /**
+   * @brief Number of element entries for this property
+   *
+   * @return
+   */
   virtual size_t size() = 0;
+
+  /**
+   * @brief A string naming the type of the property
+   *
+   * @return 
+   */
   virtual std::string propertyTypeName() = 0;
 };
 
+/**
+ * @brief A property which takes a single value (not a list).
+ */
 template <class T>
 class TypedProperty : public Property {
 
 public:
+  /**
+   * @brief Create a new Property with the given name.
+   *
+   * @param name_
+   */
   TypedProperty(std::string name_) : Property(name_){};
+
+  /**
+   * @brief Create a new property and initialize with data.
+   *
+   * @param name_
+   * @param data_
+   */
   TypedProperty(std::string name_, std::vector<T>& data_) : Property(name_), data(data_){};
+
   virtual ~TypedProperty() override{};
 
+  /**
+   * @brief (ASCII reading) Parse out the next value of this property from a list of tokens.
+   *
+   * @param tokens The list of property tokens for the element.
+   * @param currEntry Index in to tokens, updated after this property is read.
+   */
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) override {
     T val;
     std::istringstream iss(tokens[currEntry]);
@@ -92,33 +158,70 @@ public:
     currEntry++;
   };
 
+  /**
+   * @brief (binary reading) Copy the next value of this property from a stream of bits.
+   *
+   * @param stream Stream to read from.
+   */
   virtual void readNext(std::ifstream& stream) override {
     T val;
     stream.read((char*)&val, sizeof(T));
     data.push_back(val);
   }
 
+  /**
+   * @brief (reading) Write a header entry for this property.
+   *
+   * @param outStream Stream to write to.
+   */
   virtual void writeHeader(std::ofstream& outStream) override {
     outStream << "property " << typeName<T>() << " " << name << "\n";
   }
 
+  /**
+   * @brief (ASCII writing) write this property for some element to a stream in plaintext
+   *
+   * @param outStream Stream to write to.
+   * @param iElement index of the element to write.
+   */
   virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
     outStream.precision(std::numeric_limits<T>::max_digits10);
     outStream << data[iElement];
   }
 
+  /**
+   * @brief (binary writing) copy the bits of this property for some element to a stream
+   *
+   * @param outStream Stream to write to.
+   * @param iElement index of the element to write.
+   */
   virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) override {
     outStream.write((char*)&data[iElement], sizeof(T));
   }
 
+  /**
+   * @brief Number of element entries for this property
+   *
+   * @return
+   */
   virtual size_t size() override { return data.size(); }
 
+
+  /**
+   * @brief A string naming the type of the property
+   *
+   * @return 
+   */
   virtual std::string propertyTypeName() override { return typeName<T>(); }
 
+  /**
+   * @brief The actual data contained in the property
+   */
   std::vector<T> data;
 };
 
-// outstream doesn't do what we want with chars
+// outstream doesn't do what we want with chars, these specializations supersede the general behavior to ensure chars
+// get written correctly.
 template <>
 inline void TypedProperty<unsigned char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
   outStream << (int)data[iElement];
@@ -145,15 +248,36 @@ inline void TypedProperty<char>::parseNext(std::vector<std::string>& tokens, siz
 }
 
 
+/**
+ * @brief A property which is a list of value (eg, 3 doubles). Note that lists are always variable length per-element.
+ */
 template <class T>
 class TypedListProperty : public Property {
 
 public:
+  /**
+   * @brief Create a new Property with the given name.
+   *
+   * @param name_
+   */
   TypedListProperty(std::string name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_){};
+
+  /**
+   * @brief Create a new property and initialize with data
+   *
+   * @param name_
+   * @param data_
+   */
   TypedListProperty(std::string name_, std::vector<std::vector<T>>& data_) : Property(name_), data(data_){};
 
   virtual ~TypedListProperty() override{};
 
+  /**
+   * @brief (ASCII reading) Parse out the next value of this property from a list of tokens.
+   *
+   * @param tokens The list of property tokens for the element.
+   * @param currEntry Index in to tokens, updated after this property is read.
+   */
   virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) override {
 
     std::istringstream iss(tokens[currEntry]);
@@ -172,6 +296,11 @@ public:
     data.push_back(thisVec);
   }
 
+  /**
+   * @brief (binary reading) Copy the next value of this property from a stream of bits.
+   *
+   * @param stream Stream to read from.
+   */
   virtual void readNext(std::ifstream& stream) override {
 
     // Read the size of the list
@@ -188,11 +317,22 @@ public:
     data.push_back(thisVec);
   }
 
+  /**
+   * @brief (reading) Write a header entry for this property.
+   *
+   * @param outStream Stream to write to.
+   */
   virtual void writeHeader(std::ofstream& outStream) override {
     // NOTE: We ALWAYS use int as the list count output type
     outStream << "property list uint " << typeName<T>() << " " << name << "\n";
   }
 
+  /**
+   * @brief (ASCII writing) write this property for some element to a stream in plaintext
+   *
+   * @param outStream Stream to write to.
+   * @param iElement index of the element to write.
+   */
   virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
     outStream << elemList.size();
@@ -202,6 +342,12 @@ public:
     }
   }
 
+  /**
+   * @brief (binary writing) copy the bits of this property for some element to a stream
+   *
+   * @param outStream Stream to write to.
+   * @param iElement index of the element to write.
+   */
   virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
     unsigned int count = elemList.size();
@@ -211,14 +357,34 @@ public:
     }
   }
 
+  /**
+   * @brief Number of element entries for this property
+   *
+   * @return
+   */
   virtual size_t size() override { return data.size(); }
+
+
+  /**
+   * @brief A string naming the type of the property
+   *
+   * @return 
+   */
   virtual std::string propertyTypeName() override { return typeName<T>(); }
 
+  /**
+   * @brief The actualy data lists for the property
+   */
   std::vector<std::vector<T>> data;
+
+  /**
+   * @brief The number of bytes used to store the count for lists of data.
+   */
   int listCountBytes = -1;
 };
 
-// outstream doesn't do what we want with chars
+// outstream doesn't do what we want with chars, these specializations supersede the general behavior to ensure chars
+// get written correctly.
 template <>
 inline void TypedListProperty<unsigned char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
   std::vector<unsigned char>& elemList = data[iElement];
