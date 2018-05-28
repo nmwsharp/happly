@@ -1056,13 +1056,13 @@ public:
    *
    * @return The indices into the vertex elements for each face. Usually 0-based, though there are no formal rules.
    */
-  std::vector<std::vector<size_t>> getFaceIndices();
+  std::vector<std::vector<size_t>> getFaceIndices(); // defined below, because templates.
 
 
   /**
    * @brief Common-case helper set mesh vertex positons. Creates vertex element, if necessary.
    *
-   * @param vertexPositions A vector of vertex positions 
+   * @param vertexPositions A vector of vertex positions
    */
   void addVertexPositions(std::vector<std::array<double, 3>>& vertexPositions) {
 
@@ -1419,7 +1419,7 @@ inline std::vector<std::vector<size_t>> Element::getListProperty(std::string pro
   }
 }
 
-// Actual implementation for getFaceIndices
+// Actual implementation for getFaceIndices. Needs to come after the specialization of getListProperty() above.
 inline std::vector<std::vector<size_t>> PLYData::getFaceIndices() {
   for (std::string f : std::vector<std::string>{"face"}) {
     for (std::string p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
