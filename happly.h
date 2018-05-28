@@ -22,15 +22,15 @@ enum class DataFormat { ASCII, Binary };
 
 // Type name strings
 // clang-format off
-template <typename T> std::string typeName() { return "unknown"; }
-template<> inline std::string typeName<char>() { return "char"; }
-template<> inline std::string typeName<unsigned char>() { return "uchar"; }
-template<> inline std::string typeName<short>() { return "short"; }
-template<> inline std::string typeName<unsigned short>() { return "ushort"; }
-template<> inline std::string typeName<int>() { return "int"; }
-template<> inline std::string typeName<unsigned int>() { return "uint"; }
-template<> inline std::string typeName<float>() { return "float"; }
-template<> inline std::string typeName<double>() { return "double"; }
+template <typename T> std::string typeName()                { return "unknown"; }
+template<> inline std::string typeName<char>()              { return "char";    }
+template<> inline std::string typeName<unsigned char>()     { return "uchar";   }
+template<> inline std::string typeName<short>()             { return "short";   }
+template<> inline std::string typeName<unsigned short>()    { return "ushort";  }
+template<> inline std::string typeName<int>()               { return "int";     }
+template<> inline std::string typeName<unsigned int>()      { return "uint";    }
+template<> inline std::string typeName<float>()             { return "float";   }
+template<> inline std::string typeName<double>()            { return "double";  }
 // clang-format on
 
 // Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
