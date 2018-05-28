@@ -16,6 +16,87 @@ The `.ply` format is a general-purpose flat file format useful for recording num
 
 Although the `.ply` format is commonly used to store 3D mesh and point cloud data, the format itself technically has nothing to do with meshes or point clouds; it simply specifies a collection **elements**, and data (called **properties**) associated with those elements.  For instance in a mesh, the elements are vertices and faces; vertices then have properties like "position" and "color", while faces have a property which is a list of vertex indices. Happly exposes a general API for reading and writing elements and properties, as well as special-purpose helpers for the common conventions surrounding mesh data.
 
+## Examples
+
+Read basic data
+```cpp
+#include "happly.h"
+
+// Construct a data object by reading from file
+happly::PLYData plyIn("my_file.ply");
+
+// Get data from the object
+std::vector<float> elementA_prop1 = plyIn.getElement("elementA").getProperty<float>("prop1");
+std::vector<int> elementA_prop2 = plyIn.getElement("elementA").getProperty<double>("prop1");
+std::vector<std::vector<double>> elementB_listProp = plyIn.getElement("elementA").getListProperty<double>("listprop1");
+
+// Type promotion is automatic for numeric types: even if this property was stored as a float, 
+// we can access it as a double
+std::vector<double> elementA_prop1_as_double = plyIn.getElement("elementA").getProperty<double>("prop1"); 
+```
+
+Write basic data
+```cpp
+#include "happly.h"
+
+// Suppose these hold your data
+std::vector<float> elementA_prop1;
+std::vector<int> elementA_prop2;
+std::vector<std::vector<double>> elementB_listProp;
+
+// Create an empty object
+happly::PLYData plyOut();
+
+// Add elements
+plyOut.addElement("elementA", 20);
+plyOut.addElement("elementB", 20);
+
+// Add properties to those elements
+plyOut.getElement("elementA").addProperty<float>("prop1", elementA_prop1);
+plyOut.getElement("elementA").addProperty<int>("prop2", elementA_prop2);
+plyOut.getElement("elementB").addListProperty<double>("listprop1", elementB_listProp);
+
+// Write the object to file
+plyOut.write("my_output_file.ply", happly::DataFormat::Binary);
+
+```
+
+Read mesh-like data
+```cpp
+#include "happly.h"
+
+// Construct the data object by reading from file
+happly::PLYData plyIn("my_mesh_file.ply");
+
+// Get mesh-style data from the object
+std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
+std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices();
+```
+
+Write mesh-like data
+```cpp
+#include "happly.h"
+
+// Suppose these hold your data
+std::vector<std::array<double, 3>> meshVertexPositions;
+std::vector<std::array<double, 3>> meshVertexColors;
+std::vector<std::vector<size_t>> meshFaceIndices;
+
+// Create an empty object
+happly::PLYData plyOut();
+
+// Add mesh data (elements are created automatically)
+plyOut.addVertexPositions(meshVertexPositions);
+plyOut.addVertexColors(meshVertexColors);
+plyOut.addFaceIndices(fInd);
+
+
+// Write the object to file
+plyOut.write("my_output_mesh_file.ply", happly::DataFormat::ASCII);
+
+```
+
+
 ## API
 
 This assumes a basic familiarity with the file format; I suggest reading [Paul Bourke's webpage](http://paulbourke.net/dataformats/ply/) if you are new to `.ply`. 
@@ -68,7 +149,6 @@ Generally speaking, Happly uses C++ exceptions to communicate errors-- most of t
 
 - `void addFaceIndices(std::vector<std::vector<size_t>>& indices)` Adds vertex indices for faces to an object, under the element name "face" with the property name "vertex_indices".
 
-## Examples
 
 ## Known issues:
 - Writing floating-point values of `inf` or `nan` in ASCII mode is not supported, because C++'s ofstream and ifstream do not treat them consistently, and the .ply format does not specify how they should be written. They work just fine in binary mode.
