@@ -1,4 +1,5 @@
-#Happly
+# Happly
+
 ![](https://travis-ci.com/nmwsharp/happly.svg?branch=master)
 
 A header-only C++ reader/writer for the PLY file format. Parse `.ply` happily!
@@ -28,11 +29,13 @@ happly::PLYData plyIn("my_file.ply");
 // Get data from the object
 std::vector<float> elementA_prop1 = plyIn.getElement("elementA").getProperty<float>("prop1");
 std::vector<int> elementA_prop2 = plyIn.getElement("elementA").getProperty<double>("prop1");
-std::vector<std::vector<double>> elementB_listProp = plyIn.getElement("elementA").getListProperty<double>("listprop1");
+std::vector<std::vector<double>> elementB_listProp = 
+    plyIn.getElement("elementA").getListProperty<double>("listprop1");
 
 // Type promotion is automatic for numeric types: even if this property was stored as a float, 
 // we can access it as a double
-std::vector<double> elementA_prop1_as_double = plyIn.getElement("elementA").getProperty<double>("prop1"); 
+std::vector<double> elementA_prop1_as_double = 
+    plyIn.getElement("elementA").getProperty<double>("prop1"); 
 ```
 
 Write basic data
