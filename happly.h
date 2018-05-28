@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -641,7 +642,8 @@ public:
   }
 
   /**
-   * @brief Get a vector of a data from a property for this element. Automatically promotes to larger types. Throws if requested data is unavailable.
+   * @brief Get a vector of a data from a property for this element. Automatically promotes to larger types. Throws if
+   * requested data is unavailable.
    *
    * @tparam T The type of data requested
    * @param propertyName The name of the property to get.
@@ -659,7 +661,8 @@ public:
   }
 
   /**
-   * @brief Get a vector of lists of data from a property for this element. Automatically promotes to larger types. Throws if requested data is unavailable.
+   * @brief Get a vector of lists of data from a property for this element. Automatically promotes to larger types.
+   * Throws if requested data is unavailable.
    *
    * @tparam T The type of data requested
    * @param propertyName The name of the property to get.
@@ -720,7 +723,8 @@ public:
   }
 
   /**
-   * @brief (ASCII writing) Writes out all of the data for every element of this element type to the stream, including all contained properties.
+   * @brief (ASCII writing) Writes out all of the data for every element of this element type to the stream, including
+   * all contained properties.
    *
    * @param outStream The stream to write to.
    */
@@ -740,7 +744,8 @@ public:
 
 
   /**
-   * @brief (binary writing) Writes out all of the data for every element of this element type to the stream, including all contained properties.
+   * @brief (binary writing) Writes out all of the data for every element of this element type to the stream, including
+   * all contained properties.
    *
    * @param outStream The stream to write to.
    */
@@ -752,9 +757,10 @@ public:
     }
   }
 
-  
+
   /**
-   * @brief Helper function which does the hard work to implement type promotion for data getters. Throws if type conversion fails.
+   * @brief Helper function which does the hard work to implement type promotion for data getters. Throws if type
+   * conversion fails.
    *
    * @tparam D The desired output type
    * @tparam T The current attempt for the actual type of the property
@@ -785,7 +791,8 @@ public:
 
 
   /**
-   * @brief Helper function which does the hard work to implement type promotion for list data getters. Throws if type conversion fails.
+   * @brief Helper function which does the hard work to implement type promotion for list data getters. Throws if type
+   * conversion fails.
    *
    * @tparam D The desired output type
    * @tparam T The current attempt for the actual type of the property
@@ -852,12 +859,23 @@ inline bool startsWith(std::string input, std::string query) { return input.comp
 }; // namespace
 
 
+/**
+ * @brief Primary class; represents a set of data in the .ply format.
+ */
 class PLYData {
 
 public:
+  /**
+   * @brief Create an empty PLYData object.
+   */
   PLYData(){};
 
-  // Read from file
+  /**
+   * @brief Initialize a PLYData by reading from a file. Throws if any failures occur.
+   *
+   * @param filename The file to read from.
+   * @param verbose If true, print useful info about the file to stdout
+   */
   PLYData(std::string filename, bool verbose = false) {
 
     using std::cout;
@@ -893,6 +911,9 @@ public:
     }
   }
 
+  /**
+   * @brief Perform sanity checks on the file, throwing if any fail.
+   */
   void validate() {
 
     for (size_t iE = 0; iE < elements.size(); iE++) {
@@ -914,6 +935,12 @@ public:
     }
   }
 
+  /**
+   * @brief Write this data to a .ply file.
+   *
+   * @param filename The file to write to.
+   * @param format The format to use (binary or ascii?)
+   */
   void write(std::string filename, DataFormat format = DataFormat::ASCII) {
     outputDataFormat = format;
 
@@ -937,22 +964,54 @@ public:
     }
   }
 
-  // ===  Helpers
+  /**
+   * @brief Get an element type by name ("vertices")
+   *
+   * @param target The name of the element type to get
+   *
+   * @return A reference to the element type.
+   */
   Element& getElement(std::string target) {
     for (Element& e : elements) {
       if (e.name == target) return e;
     }
     throw std::runtime_error("PLY parser: no element with name: " + target);
   }
+
+
+  /**
+   * @brief Check if an element type exists
+   *
+   * @param target The name to check for.
+   *
+   * @return True if exists.
+   */
   bool hasElement(std::string target) {
     for (Element& e : elements) {
       if (e.name == target) return true;
     }
     return false;
   }
+
+
+  /**
+   * @brief Add a new element type to the object
+   *
+   * @param name The name of the new element type ("vertices").
+   * @param count The number of elements of this type.
+   */
   void addElement(std::string name, size_t count) { elements.emplace_back(name, count); }
 
   // === Common-case helpers
+
+
+  /**
+   * @brief Common-case helper get mesh vertex positions
+   *
+   * @param vertexElementName The element name to use (default: "vertex")
+   *
+   * @return A vector of vertex positions.
+   */
   std::vector<std::array<double, 3>> getVertexPositions(std::string vertexElementName = "vertex") {
 
     std::vector<double> xPos = getElement(vertexElementName).getProperty<double>("x");
@@ -969,6 +1028,13 @@ public:
     return result;
   }
 
+  /**
+   * @brief Common-case helper get mesh vertex colors
+   *
+   * @param vertexElementName The element name to use (default: "vertex")
+   *
+   * @return A vector of vertex colors (unsigned chars [0,255]).
+   */
   std::vector<std::array<unsigned char, 3>> getVertexColors(std::string vertexElementName = "vertex") {
 
     std::vector<unsigned char> r = getElement(vertexElementName).getProperty<unsigned char>("red");
@@ -985,10 +1051,19 @@ public:
     return result;
   }
 
+  /**
+   * @brief Common-case helper to get face indices for a mesh
+   *
+   * @return The indices into the vertex elements for each face. Usually 0-based, though there are no formal rules.
+   */
   std::vector<std::vector<size_t>> getFaceIndices();
 
 
-  // Creates a vertex element (if doesn't already exist) and sets positions
+  /**
+   * @brief Common-case helper set mesh vertex positons. Creates vertex element, if necessary.
+   *
+   * @param vertexPositions A vector of vertex positions 
+   */
   void addVertexPositions(std::vector<std::array<double, 3>>& vertexPositions) {
 
     std::string vertexName = "vertex";
@@ -1015,7 +1090,11 @@ public:
     getElement(vertexName).addProperty<double>("z", zPos);
   }
 
-  // Create a vertex element (if doesn't already exist) and sets colors as uchars
+  /**
+   * @brief Common-case helper set mesh vertex colors. Creates a vertex element, if necessary.
+   *
+   * @param vertexPositions A vector of vertex colors (unsigned chars [0,255]).
+   */
   void addVertexColors(std::vector<std::array<double, 3>>& colors) {
 
     std::string vertexName = "vertex";
@@ -1049,6 +1128,11 @@ public:
   }
 
 
+  /**
+   * @brief Common-case helper to set face indices. Creates a face element if needed.
+   *
+   * @param indices The indices into the vertex list around each face.
+   */
   void addFaceIndices(std::vector<std::vector<size_t>>& indices) {
 
     std::string faceName = "face";
@@ -1082,6 +1166,12 @@ private:
 
   // === Reading ===
 
+  /**
+   * @brief Read the header for a file
+   *
+   * @param inStream
+   * @param verbose
+   */
   void parseHeader(std::ifstream& inStream, bool verbose) {
 
     using std::cout;
@@ -1195,6 +1285,12 @@ private:
     }
   }
 
+  /**
+   * @brief Read the actual data for a file, in ASCII
+   *
+   * @param inStream
+   * @param verbose
+   */
   void parseASCII(std::ifstream& inStream, bool verbose) {
 
     using std::string;
@@ -1221,6 +1317,12 @@ private:
     }
   }
 
+  /**
+   * @brief Read the actual data for a file, in binary.
+   *
+   * @param inStream
+   * @param verbose
+   */
   void parseBinary(std::ifstream& inStream, bool verbose) {
 
     using std::string;
@@ -1242,6 +1344,13 @@ private:
   }
 
   // === Writing ===
+
+
+  /**
+   * @brief Write out a header for a file
+   *
+   * @param outStream
+   */
   void writeHeader(std::ofstream& outStream) {
 
     // Magic line
@@ -1310,7 +1419,7 @@ inline std::vector<std::vector<size_t>> Element::getListProperty(std::string pro
   }
 }
 
-
+// Actual implementation for getFaceIndices
 inline std::vector<std::vector<size_t>> PLYData::getFaceIndices() {
   for (std::string f : std::vector<std::string>{"face"}) {
     for (std::string p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
