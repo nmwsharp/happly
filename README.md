@@ -52,7 +52,7 @@ happly::PLYData plyOut();
 
 // Add elements
 plyOut.addElement("elementA", 20);
-plyOut.addElement("elementB", 20);
+plyOut.addElement("elementB", 42);
 
 // Add properties to those elements
 plyOut.getElement("elementA").addProperty<float>("prop1", elementA_prop1);
