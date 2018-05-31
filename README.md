@@ -1,10 +1,10 @@
 # Happly
+![](https://travis-ci.com/nmwsharp/happly.svg?branch=master)
+
 <p align="center">
 <img src="https://github.com/nmwsharp/happly/blob/master/misc/happly_logo.jpg" width="200"> 
 </p>
 <p align="center">A header-only C++ reader/writer for the PLY file format. Parse `.ply` happily! <p align="center">
-
-![](https://travis-ci.com/nmwsharp/happly.svg?branch=master)
 
 ### Features:
 - Header only-- drop in and use!
