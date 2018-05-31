@@ -4,7 +4,7 @@
 <p align="center">
 <img src="https://github.com/nmwsharp/happly/blob/master/misc/happly_logo.jpg" width="200"> 
 </p>
-<p align="center">A header-only C++ reader/writer for the PLY file format. Parse `.ply` happily! <p align="center">
+<p align="center">A header-only C++ reader/writer for the PLY file format. Parse .ply happily! <p align="center">
 
 ### Features:
 - Header only-- drop in and use!
@@ -156,7 +156,7 @@ Generally speaking, Happly uses C++ exceptions to communicate errors-- most of t
 
 
 ## Known issues:
-- Writing floating-point values of `inf` or `nan` in ASCII mode is not supported, because C++'s ofstream and ifstream do not treat them consistently, and the .ply format does not specify how they should be written. They work just fine in binary mode.
+- Writing floating-point values of `inf` or `nan` in ASCII mode is not supported, because the .ply format does not specify how they should be written (C++'s ofstream and ifstream don't even treat them consistently). These values work just fine in binary mode.
 - The `.ply` file format allows binary files to be big-endian or little-endian; Happly only explicitly supports little-endian files, and basically just assumes your machine is little-endian.
 
 
