@@ -32,7 +32,7 @@ happly::PLYData plyIn("my_file.ply");
 std::vector<float> elementA_prop1 = plyIn.getElement("elementA").getProperty<float>("prop1");
 std::vector<int> elementA_prop2 = plyIn.getElement("elementA").getProperty<double>("prop1");
 std::vector<std::vector<double>> elementB_listProp = 
-    plyIn.getElement("elementA").getListProperty<double>("listprop1");
+    plyIn.getElement("elementB").getListProperty<double>("listprop1");
 
 // Type promotion is automatic for numeric types: even if this property was stored as a float, 
 // we can access it as a double
@@ -122,7 +122,7 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
 
 **Accessing and adding data to an object**:
 
-- `void addElement(std::string name, size_t count)` Add a new element type to the object, with the object, with a specified number of elements.
+- `void addElement(std::string name, size_t count)` Add a new element type to the object, with the given name and number of elements.
 
 - `Element& getElement(std::string target)` Get a reference to an element type contained in the object.
   
