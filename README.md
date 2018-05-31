@@ -166,4 +166,4 @@ Generally speaking, Happly uses C++ exceptions to communicate errors-- most of t
 - Bindings for Python, Matlab?
 
 ## Author
-By [Nicholas Sharp](www.nmwsharp.com). Credit to [Keenan Crane](www.keenan.is/here) for the logo!
+By [Nicholas Sharp](http://www.nmwsharp.com). Credit to [Keenan Crane](http://www.keenan.is/here) for the logo!
