@@ -1,4 +1,4 @@
-# Happly
+# hapPLY
 ![](https://travis-ci.com/nmwsharp/happly.svg?branch=master)
 
 <p align="center">
@@ -13,11 +13,11 @@
 - Automatic type promotion-- eg, if a file contains a `float` field, you can seamlessly read it as a `double`!
 - Tested, documented, and MIT-licensed!
 
-## The `.ply` format and Happly
+## The `.ply` format and hapPLY
 
-The `.ply` format is a general-purpose flat file format useful for recording numerical data on unstructured domains, which includes both plaintext and binary representations. The format has been kicking around since the 90s: [Paul Bourke's webpage](http://paulbourke.net/dataformats/ply/) serves as both an introduction and the most official specification. [Happly](https://github.com/nmwsharp/happly) grew out of my own personal code for `.ply` files-- the format is extremely useful for working with 3D meshes and other geometric data, but no easily accessible C++ implementation was available.
+The `.ply` format is a general-purpose flat file format useful for recording numerical data on unstructured domains, which includes both plaintext and binary representations. The format has been kicking around since the 90s: [Paul Bourke's webpage](http://paulbourke.net/dataformats/ply/) serves as both an introduction and the most official specification. [hapPLY](https://github.com/nmwsharp/happly) grew out of my own personal code for `.ply` files-- the format is extremely useful for working with 3D meshes and other geometric data, but no easily accessible C++ implementation was available.
 
-Although the `.ply` format is commonly used to store 3D mesh and point cloud data, the format itself technically has nothing to do with meshes or point clouds; it simply specifies a collection **elements**, and data (called **properties**) associated with those elements.  For instance in a mesh, the elements are vertices and faces; vertices then have properties like "position" and "color", while faces have a property which is a list of vertex indices. Happly exposes a general API for reading and writing elements and properties, as well as special-purpose helpers for the common conventions surrounding mesh data.
+Although the `.ply` format is commonly used to store 3D mesh and point cloud data, the format itself technically has nothing to do with meshes or point clouds; it simply specifies a collection **elements**, and data (called **properties**) associated with those elements.  For instance in a mesh, the elements are vertices and faces; vertices then have properties like "position" and "color", while faces have a property which is a list of vertex indices. hapPLY exposes a general API for reading and writing elements and properties, as well as special-purpose helpers for the common conventions surrounding mesh data.
 
 ## Examples
 
@@ -106,9 +106,9 @@ plyOut.write("my_output_mesh_file.ply", happly::DataFormat::ASCII);
 
 This assumes a basic familiarity with the file format; I suggest reading [Paul Bourke's webpage](http://paulbourke.net/dataformats/ply/) if you are new to `.ply`. 
 
-All of the outward-facing functionality of Happly is grouped under a single (namespaced) class called `happly::PLYData`, which represents a collection of elements and their properties. `PLYData` objects can be constructed from an existing file `PLYData::PLYData("my_input.ply")`, or you can fill with your own data and then write to file `PLYData::write("my_output.ply", DataFormat::ASCII)`.
+All of the outward-facing functionality of hapPLY is grouped under a single (namespaced) class called `happly::PLYData`, which represents a collection of elements and their properties. `PLYData` objects can be constructed from an existing file `PLYData::PLYData("my_input.ply")`, or you can fill with your own data and then write to file `PLYData::write("my_output.ply", DataFormat::ASCII)`.
 
-Generally speaking, Happly uses C++ exceptions to communicate errors-- most of these methods will throw if something is wrong. Happly attempts to provide basic sanity checks and informative errors, but does not guarantee robustness to malformed input.
+Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of these methods will throw if something is wrong. hapPLY attempts to provide basic sanity checks and informative errors, but does not guarantee robustness to malformed input.
 
 **Reading and writing objects**:
 
@@ -157,7 +157,7 @@ Generally speaking, Happly uses C++ exceptions to communicate errors-- most of t
 
 ## Known issues:
 - Writing floating-point values of `inf` or `nan` in ASCII mode is not supported, because the .ply format does not specify how they should be written (C++'s ofstream and ifstream don't even treat them consistently). These values work just fine in binary mode.
-- The `.ply` file format allows binary files to be big-endian or little-endian; Happly only explicitly supports little-endian files, and basically just assumes your machine is little-endian.
+- The `.ply` file format allows binary files to be big-endian or little-endian; hapPLY only explicitly supports little-endian files, and basically just assumes your machine is little-endian.
 
 
 ## Current TODOs:
