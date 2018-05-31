@@ -164,3 +164,6 @@ Generally speaking, Happly uses C++ exceptions to communicate errors-- most of t
 - Add more common-case helpers for meshes (texture coordinates, etc)
 - Add common-case helpers for point clouds
 - Bindings for Python, Matlab?
+
+## Author
+By [Nicholas Sharp](www.nmwsharp.com). Credit to [Keenan Crane](www.keenan.is/here) for the logo!
