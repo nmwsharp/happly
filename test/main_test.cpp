@@ -155,7 +155,7 @@ TEST(TypedReadWriteTest, ReadWriteIntASCII) {
   // Create a simple file
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
-  std::vector<int> testData{-3, 0, 2147483647, -2147483648, 122};
+  std::vector<int> testData{-3, 0, 2147483647, -2147483647 - 1, 122};
   plyOut.getElement("test_elem").addProperty<int>("test_data", testData);
 
   // ASCII read/write
@@ -169,7 +169,7 @@ TEST(TypedReadWriteTest, ReadWriteIntBinary) {
   // Create a simple file
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
-  std::vector<int> testData{-3, 0, 2147483647, -2147483648, 122};
+  std::vector<int> testData{-3, 0, 2147483647, -2147483647 - 1, 122};
   plyOut.getElement("test_elem").addProperty<int>("test_data", testData);
 
   // Binary read/write
@@ -215,11 +215,17 @@ TEST(TypedReadWriteTest, ReadWriteFloatASCII) {
   // Create a simple file
   happly::PLYData plyOut;
   std::vector<float> testData{
-      3.141592653589793238, -3.141592653589793238, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-      std::numeric_limits<float>::lowest(), std::numeric_limits<float>::epsilon(),
+      3.141592653589793238f,
+      -3.141592653589793238f,
+      std::numeric_limits<float>::min(),
+      std::numeric_limits<float>::max(),
+      std::numeric_limits<float>::lowest(),
+      std::numeric_limits<float>::epsilon(),
       // std::numeric_limits<float>::infinity(),     // these DO NOT work right now, due to how ostream works
       //-std::numeric_limits<float>::infinity(),
-      0.0, -0.0, 1e24,
+      0.0f,
+      -0.0f,
+      1e24f,
   };
   plyOut.addElement("test_elem", testData.size());
   plyOut.getElement("test_elem").addProperty<float>("test_data", testData);
@@ -235,17 +241,17 @@ TEST(TypedReadWriteTest, ReadWriteFloatBinary) {
   // Create a simple file
   happly::PLYData plyOut;
   std::vector<float> testData{
-      3.141592653589793238,
-      -3.141592653589793238,
+      3.141592653589793238f,
+      -3.141592653589793238f,
       std::numeric_limits<float>::min(),
       std::numeric_limits<float>::max(),
       std::numeric_limits<float>::lowest(),
       std::numeric_limits<float>::epsilon(),
       std::numeric_limits<float>::infinity(),
       -std::numeric_limits<float>::infinity(),
-      0.0,
-      -0.0,
-      1e24,
+      0.0f,
+      -0.0f,
+      1e24f,
   };
   plyOut.addElement("test_elem", testData.size());
   plyOut.getElement("test_elem").addProperty<float>("test_data", testData);
@@ -264,11 +270,17 @@ TEST(TypedReadWriteTest, ReadWriteDoubleASCII) {
   // Create a simple file
   happly::PLYData plyOut;
   std::vector<double> testData{
-      3.141592653589793238, -3.141592653589793238, std::numeric_limits<double>::min(),
-      std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest(), std::numeric_limits<double>::epsilon(),
+      3.141592653589793238,
+      -3.141592653589793238,
+      std::numeric_limits<double>::min(),
+      std::numeric_limits<double>::max(),
+      std::numeric_limits<double>::lowest(),
+      std::numeric_limits<double>::epsilon(),
       // std::numeric_limits<double>::infinity(),     // these DO NOT work right now, due to how ostream works
       //-std::numeric_limits<double>::infinity(),
-      0.0, -0.0, 1e24,
+      0.0,
+      -0.0,
+      1e24,
   };
   plyOut.addElement("test_elem", testData.size());
   plyOut.getElement("test_elem").addProperty<double>("test_data", testData);
@@ -456,7 +468,7 @@ TEST(TypedListReadWriteTest, ReadWriteIntASCII) {
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
   std::vector<std::vector<int>> testData{
-      {3}, {-3, 0, 2147483647, -2147483648, 122}, {}, {}, {3, 11},
+      {3}, {-3, 0, 2147483647, -2147483647 - 1, 122}, {}, {}, {3, 11},
   };
   plyOut.getElement("test_elem").addListProperty<int>("test_data", testData);
 
@@ -472,7 +484,7 @@ TEST(TypedListReadWriteTest, ReadWriteIntBinary) {
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
   std::vector<std::vector<int>> testData{
-      {3}, {-3, 0, 2147483647, -2147483648, 122}, {}, {}, {3, 11},
+      {3}, {-3, 0, 2147483647, -2147483647 - 1, 122}, {}, {}, {3, 11},
   };
   plyOut.getElement("test_elem").addListProperty<int>("test_data", testData);
 
@@ -527,15 +539,21 @@ TEST(TypedListReadWriteTest, ReadWriteFloatASCII) {
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
   std::vector<std::vector<float>> testData{
-      {3., 14.44, 42.4242},
+      {3.f, 14.44f, 42.4242f},
       {
-          3.141592653589793238, -3.141592653589793238, std::numeric_limits<float>::min(),
-          std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest(),
-          std::numeric_limits<float>::epsilon(), 0.0, -0.0, 1e24,
+          3.141592653589793238f,
+          -3.141592653589793238f,
+          std::numeric_limits<float>::min(),
+          std::numeric_limits<float>::max(),
+          std::numeric_limits<float>::lowest(),
+          std::numeric_limits<float>::epsilon(),
+          0.0f,
+          -0.0f,
+          1e24f,
       },
       {},
-      {1.1},
-      {-121.5, 1.111},
+      {1.1f},
+      {-121.5f, 1.111f},
   };
   plyOut.getElement("test_elem").addListProperty<float>("test_data", testData);
 
@@ -551,15 +569,21 @@ TEST(TypedListReadWriteTest, ReadWriteFloatBinary) {
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
   std::vector<std::vector<float>> testData{
-      {3., 14.44, 42.4242},
+      {3.f, 14.44f, 42.4242f},
       {
-          3.141592653589793238, -3.141592653589793238, std::numeric_limits<float>::min(),
-          std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest(),
-          std::numeric_limits<float>::epsilon(), 0.0, -0.0, 1e24,
+          3.141592653589793238f,
+          -3.141592653589793238f,
+          std::numeric_limits<float>::min(),
+          std::numeric_limits<float>::max(),
+          std::numeric_limits<float>::lowest(),
+          std::numeric_limits<float>::epsilon(),
+          0.0f,
+          -0.0f,
+          1e24f,
       },
       {},
-      {1.1},
-      {-121.5, 1.111},
+      {1.1f},
+      {-121.5f, 1.111f},
   };
   plyOut.getElement("test_elem").addListProperty<float>("test_data", testData);
 
@@ -579,9 +603,15 @@ TEST(TypedListReadWriteTest, ReadWriteDoubleASCII) {
   std::vector<std::vector<double>> testData{
       {3., 14.44, 42.4242},
       {
-          3.141592653589793238, -3.141592653589793238, std::numeric_limits<double>::min(),
-          std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest(),
-          std::numeric_limits<double>::epsilon(), 0.0, -0.0, 1e24,
+          3.141592653589793238,
+          -3.141592653589793238,
+          std::numeric_limits<double>::min(),
+          std::numeric_limits<double>::max(),
+          std::numeric_limits<double>::lowest(),
+          std::numeric_limits<double>::epsilon(),
+          0.0,
+          -0.0,
+          1e24,
       },
       {},
       {1.1},
@@ -603,9 +633,15 @@ TEST(TypedListReadWriteTest, ReadWriteDoubleBinary) {
   std::vector<std::vector<double>> testData{
       {3., 14.44, 42.4242},
       {
-          3.141592653589793238, -3.141592653589793238, std::numeric_limits<double>::min(),
-          std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest(),
-          std::numeric_limits<double>::epsilon(), 0.0, -0.0, 1e24,
+          3.141592653589793238,
+          -3.141592653589793238,
+          std::numeric_limits<double>::min(),
+          std::numeric_limits<double>::max(),
+          std::numeric_limits<double>::lowest(),
+          std::numeric_limits<double>::epsilon(),
+          0.0,
+          -0.0,
+          1e24,
       },
       {},
       {1.1},
@@ -720,29 +756,35 @@ TEST(TypePromotionTest, PromoteUnsigned) {
   std::vector<unsigned short> dataS{1, 3, 5};
   std::vector<unsigned int> dataI{1, 3, 5};
   std::vector<unsigned long long> dataL{1, 3, 5};
+  std::vector<size_t> dataSZ{1, 3, 5};
 
   EXPECT_EQ(dataC, ply.getElement("test_elem").getProperty<unsigned char>("data"));
   EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<unsigned short>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<unsigned int>("data"));
   EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<unsigned long long>("data"));
+  EXPECT_EQ(dataSZ, ply.getElement("test_elem").getProperty<size_t>("data"));
 }
 
 TEST(TypePromotionTest, PromoteSigned) {
 
   happly::PLYData ply;
   ply.addElement("test_elem", 3);
+  std::vector<char> data{1, -3, 5};
+  ply.getElement("test_elem").addProperty("data", data);
+
+
   std::vector<char> dataC{1, -3, 5};
-  ply.getElement("test_elem").addProperty("data", dataC);
-
-
   std::vector<short> dataS{1, -3, 5};
   std::vector<int> dataI{1, -3, 5};
-  std::vector<long long> dataL{1, -3, 5};
+  std::vector<long long int> dataL{1, -3, 5};
 
   EXPECT_EQ(dataC, ply.getElement("test_elem").getProperty<char>("data"));
+  EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<int16_t>("data"));
   EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<short>("data"));
+  EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<int32_t>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<int>("data"));
-  EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<long long>("data"));
+  EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<int64_t>("data"));
+  EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<long long int>("data"));
 }
 
 TEST(TypePromotionTest, DontPromoteAcrossSign) {

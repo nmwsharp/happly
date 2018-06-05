@@ -6,12 +6,14 @@
  */
 
 #include <array>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 // General namespace wrapping all Happly things.
@@ -23,12 +25,12 @@ enum class DataFormat { ASCII, Binary };
 // Type name strings
 // clang-format off
 template <typename T> std::string typeName()                { return "unknown"; }
-template<> inline std::string typeName<char>()              { return "char";    }
-template<> inline std::string typeName<unsigned char>()     { return "uchar";   }
-template<> inline std::string typeName<short>()             { return "short";   }
-template<> inline std::string typeName<unsigned short>()    { return "ushort";  }
-template<> inline std::string typeName<int>()               { return "int";     }
-template<> inline std::string typeName<unsigned int>()      { return "uint";    }
+template<> inline std::string typeName<int8_t>()            { return "char";    }
+template<> inline std::string typeName<uint8_t>()           { return "uchar";   }
+template<> inline std::string typeName<int16_t>()           { return "short";   }
+template<> inline std::string typeName<uint16_t>()          { return "ushort";  }
+template<> inline std::string typeName<int32_t>()           { return "int";     }
+template<> inline std::string typeName<uint32_t>()          { return "uint";    }
 template<> inline std::string typeName<float>()             { return "float";   }
 template<> inline std::string typeName<double>()            { return "double";  }
 // clang-format on
@@ -36,17 +38,24 @@ template<> inline std::string typeName<double>()            { return "double";  
 // Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
 namespace {
 
-// A pointer for the smaller equivalent of a type (eg. when a double is requested a float works too, etc)
+// A pointer for the equivalent/smaller equivalent of a type (eg. when a double is requested a float works too, etc)
+// long int is intentionally absent to avoid platform confusion
 // clang-format off
-template <class T> struct HalfSize              { bool hasChildType = false;   typedef T                    type; };
-template <> struct HalfSize<long long>          { bool hasChildType = true;    typedef int                  type; };
-template <> struct HalfSize<int>                { bool hasChildType = true;    typedef short                type; };
-template <> struct HalfSize<short>              { bool hasChildType = true;    typedef char                 type; };
-template <> struct HalfSize<size_t>             { bool hasChildType = true;    typedef unsigned long long   type; };
-template <> struct HalfSize<unsigned long long> { bool hasChildType = true;    typedef unsigned int         type; };
-template <> struct HalfSize<unsigned int>       { bool hasChildType = true;    typedef unsigned short       type; };
-template <> struct HalfSize<unsigned short>     { bool hasChildType = true;    typedef unsigned char        type; };
-template <> struct HalfSize<double>             { bool hasChildType = true;    typedef float                type; };
+template <class T> struct TypeChain                 { bool hasChildType = false;   typedef T            type; };
+template <> struct TypeChain<int64_t>               { bool hasChildType = true;    typedef int32_t      type; };
+template <> struct TypeChain<int32_t>               { bool hasChildType = true;    typedef int16_t      type; };
+template <> struct TypeChain<int16_t>               { bool hasChildType = true;    typedef int8_t       type; };
+template <> struct TypeChain<uint64_t>              { bool hasChildType = true;    typedef uint32_t     type; };
+template <> struct TypeChain<uint32_t>              { bool hasChildType = true;    typedef uint16_t     type; };
+template <> struct TypeChain<uint16_t>              { bool hasChildType = true;    typedef uint8_t      type; };
+template <> struct TypeChain<double>                { bool hasChildType = true;    typedef float        type; };
+// clang-format on
+
+// clang-format off
+template <class T> struct CanonicalName                     { typedef T         type; };
+template <> struct CanonicalName<char>                      { typedef int8_t    type; };
+template <> struct CanonicalName<unsigned char>             { typedef uint8_t   type; };
+template <> struct CanonicalName<size_t>                    { typedef std::conditional<std::is_same<std::make_signed<size_t>::type, int>::value, uint32_t, uint64_t>::type type; };
 // clang-format on
 } // namespace
 
@@ -133,7 +142,11 @@ public:
    *
    * @param name_
    */
-  TypedProperty(std::string name_) : Property(name_){};
+  TypedProperty(std::string name_) : Property(name_) {
+    if (typeName<T>() == "unknown") {
+      throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
+    }
+  };
 
   /**
    * @brief Create a new property and initialize with data.
@@ -141,7 +154,11 @@ public:
    * @param name_
    * @param data_
    */
-  TypedProperty(std::string name_, std::vector<T>& data_) : Property(name_), data(data_){};
+  TypedProperty(std::string name_, std::vector<T>& data_) : Property(name_), data(data_) {
+    if (typeName<T>() == "unknown") {
+      throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
+    }
+  };
 
   virtual ~TypedProperty() override{};
 
@@ -224,27 +241,27 @@ public:
 // outstream doesn't do what we want with chars, these specializations supersede the general behavior to ensure chars
 // get written correctly.
 template <>
-inline void TypedProperty<unsigned char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+inline void TypedProperty<uint8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
   outStream << (int)data[iElement];
 }
 template <>
-inline void TypedProperty<char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+inline void TypedProperty<int8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
   outStream << (int)data[iElement];
 }
 template <>
-inline void TypedProperty<unsigned char>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+inline void TypedProperty<uint8_t>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
   std::istringstream iss(tokens[currEntry]);
   int intVal;
   iss >> intVal;
-  data.push_back((unsigned char)intVal);
+  data.push_back((uint8_t)intVal);
   currEntry++;
 }
 template <>
-inline void TypedProperty<char>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+inline void TypedProperty<int8_t>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
   std::istringstream iss(tokens[currEntry]);
   int intVal;
   iss >> intVal;
-  data.push_back((char)intVal);
+  data.push_back((int8_t)intVal);
   currEntry++;
 }
 
@@ -261,7 +278,11 @@ public:
    *
    * @param name_
    */
-  TypedListProperty(std::string name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_){};
+  TypedListProperty(std::string name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_) {
+    if (typeName<T>() == "unknown") {
+      throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
+    }
+  };
 
   /**
    * @brief Create a new property and initialize with data
@@ -269,7 +290,11 @@ public:
    * @param name_
    * @param data_
    */
-  TypedListProperty(std::string name_, std::vector<std::vector<T>>& data_) : Property(name_), data(data_){};
+  TypedListProperty(std::string name_, std::vector<std::vector<T>>& data_) : Property(name_), data(data_) {
+    if (typeName<T>() == "unknown") {
+      throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
+    }
+  };
 
   virtual ~TypedListProperty() override{};
 
@@ -384,58 +409,58 @@ public:
   int listCountBytes = -1;
 };
 
-// outstream doesn't do what we want with chars, these specializations supersede the general behavior to ensure chars
+// outstream doesn't do what we want with int8_ts, these specializations supersede the general behavior to ensure int8_ts
 // get written correctly.
 template <>
-inline void TypedListProperty<unsigned char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
-  std::vector<unsigned char>& elemList = data[iElement];
+inline void TypedListProperty<uint8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+  std::vector<uint8_t>& elemList = data[iElement];
   outStream << elemList.size();
-  outStream.precision(std::numeric_limits<unsigned char>::max_digits10);
+  outStream.precision(std::numeric_limits<uint8_t>::max_digits10);
   for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
     outStream << " " << (int)elemList[iEntry];
   }
 }
 template <>
-inline void TypedListProperty<char>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
-  std::vector<char>& elemList = data[iElement];
+inline void TypedListProperty<int8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+  std::vector<int8_t>& elemList = data[iElement];
   outStream << elemList.size();
-  outStream.precision(std::numeric_limits<char>::max_digits10);
+  outStream.precision(std::numeric_limits<int8_t>::max_digits10);
   for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
     outStream << " " << (int)elemList[iEntry];
   }
 }
 template <>
-inline void TypedListProperty<unsigned char>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+inline void TypedListProperty<uint8_t>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
 
   std::istringstream iss(tokens[currEntry]);
   size_t count;
   iss >> count;
   currEntry++;
 
-  std::vector<unsigned char> thisVec;
+  std::vector<uint8_t> thisVec;
   for (size_t iCount = 0; iCount < count; iCount++) {
     std::istringstream iss(tokens[currEntry]);
     int intVal;
     iss >> intVal;
-    thisVec.push_back((unsigned char)intVal);
+    thisVec.push_back((uint8_t)intVal);
     currEntry++;
   }
   data.push_back(thisVec);
 }
 template <>
-inline void TypedListProperty<char>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+inline void TypedListProperty<int8_t>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
 
   std::istringstream iss(tokens[currEntry]);
   size_t count;
   iss >> count;
   currEntry++;
 
-  std::vector<char> thisVec;
+  std::vector<int8_t> thisVec;
   for (size_t iCount = 0; iCount < count; iCount++) {
     std::istringstream iss(tokens[currEntry]);
     int intVal;
     iss >> intVal;
-    thisVec.push_back((char)intVal);
+    thisVec.push_back((int8_t)intVal);
     currEntry++;
   }
   data.push_back(thisVec);
@@ -477,27 +502,27 @@ inline std::unique_ptr<Property> createPropertyWithType(std::string name, std::s
   // 8 bit unsigned
   if (typeStr == "uchar" || typeStr == "uint8") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<unsigned char>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<uint8_t>(name, listCountBytes));
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<unsigned char>(name));
+      return std::unique_ptr<Property>(new TypedProperty<uint8_t>(name));
     }
   }
 
   // 16 bit unsigned
   else if (typeStr == "ushort" || typeStr == "uint16") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<unsigned short>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<uint16_t>(name, listCountBytes));
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<unsigned short>(name));
+      return std::unique_ptr<Property>(new TypedProperty<uint16_t>(name));
     }
   }
 
   // 32 bit unsigned
   else if (typeStr == "uint" || typeStr == "uint32") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<unsigned int>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<uint32_t>(name, listCountBytes));
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<unsigned int>(name));
+      return std::unique_ptr<Property>(new TypedProperty<uint32_t>(name));
     }
   }
 
@@ -506,27 +531,27 @@ inline std::unique_ptr<Property> createPropertyWithType(std::string name, std::s
   // 8 bit signed
   if (typeStr == "char" || typeStr == "int8") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<char>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<int8_t>(name, listCountBytes));
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<char>(name));
+      return std::unique_ptr<Property>(new TypedProperty<int8_t>(name));
     }
   }
 
   // 16 bit signed
   else if (typeStr == "short" || typeStr == "int16") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<short>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<int16_t>(name, listCountBytes));
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<short>(name));
+      return std::unique_ptr<Property>(new TypedProperty<int16_t>(name));
     }
   }
 
   // 32 bit signed
   else if (typeStr == "int" || typeStr == "int32") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<int>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<int32_t>(name, listCountBytes));
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<int>(name));
+      return std::unique_ptr<Property>(new TypedProperty<int32_t>(name));
     }
   }
 
@@ -551,7 +576,7 @@ inline std::unique_ptr<Property> createPropertyWithType(std::string name, std::s
   }
 
   else {
-    throw std::runtime_error("Unrecognized data type: " + typeStr);
+    throw std::runtime_error("Data type: " + typeStr + " cannot be mapped to .ply format");
   }
 }
 
@@ -613,7 +638,11 @@ public:
       }
     }
 
-    properties.push_back(std::unique_ptr<Property>(new TypedProperty<T>(propertyName, data)));
+    // Copy to canonical type. Often a no-op, but takes care of standardizing widths across platforms.
+    std::vector<typename CanonicalName<T>::type> canonicalVec(data.begin(), data.end());
+
+    properties.push_back(
+        std::unique_ptr<Property>(new TypedProperty<typename CanonicalName<T>::type>(propertyName, canonicalVec)));
   }
 
   /**
@@ -638,7 +667,14 @@ public:
       }
     }
 
-    properties.push_back(std::unique_ptr<Property>(new TypedListProperty<T>(propertyName, data)));
+    // Copy to canonical type. Often a no-op, but takes care of standardizing widths across platforms.
+    std::vector<std::vector<typename CanonicalName<T>::type>> canonicalListVec;
+    for (std::vector<T>& subList : data) {
+      canonicalListVec.emplace_back(subList.begin(), subList.end());
+    }
+
+    properties.push_back(std::unique_ptr<Property>(
+        new TypedListProperty<typename CanonicalName<T>::type>(propertyName, canonicalListVec)));
   }
 
   /**
@@ -677,6 +713,61 @@ public:
 
     // Get a copy of the data with auto-promoting type magic
     return getDataFromListPropertyRecursive<T, T>(prop.get());
+  }
+
+
+  /**
+   * @brief Get a vector of lists of data from a property for this element. Automatically promotes to larger types.
+   * Unlike getListProperty(), this method will additionally convert between types of different sign (eg, requesting and
+   * int32 would get data from a uint32); doing so naively converts between signed and unsigned types. This is typically
+   * useful for data representing indices, which might be stored as signed or unsigned numbers. Throws if requested data
+   * is unavailable.
+   *
+   * @tparam T The type of data requested
+   * @param propertyName The name of the property to get.
+   *
+   * @return The data.
+   */
+  template <class T>
+  std::vector<std::vector<T>> getListPropertyAnySign(std::string propertyName) {
+
+    // Find the property
+    std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
+
+    // Get a copy of the data with auto-promoting type magic
+    try {
+      // First, try the usual approach, looking for a version of the property with the same signed-ness and possibly
+      // smaller size
+      return getDataFromListPropertyRecursive<T, T>(prop.get());
+    } catch (std::runtime_error orig_e) {
+
+      // If the usual approach fails, look for a version with opposite signed-ness
+      try {
+
+        // This type has the oppopsite signeness as the input type
+        typedef typename CanonicalName<T>::type Tcan;
+        typedef typename std::conditional<std::is_signed<Tcan>::value, typename std::make_unsigned<Tcan>::type,
+                                          typename std::make_signed<Tcan>::type>::type OppsignType;
+
+        std::vector<std::vector<OppsignType>> oppSignedResult = getListProperty<OppsignType>(propertyName);
+
+        // Very explicitly convert while copying
+        std::vector<std::vector<T>> origSignResult;
+        for (std::vector<OppsignType>& l : oppSignedResult) {
+          std::vector<T> newL;
+          for (OppsignType& v : l) {
+            newL.push_back(static_cast<T>(v));
+          }
+          origSignResult.push_back(newL);
+        }
+
+        return origSignResult;
+      } catch (std::runtime_error new_e) {
+        throw orig_e;
+      }
+
+      throw orig_e;
+    }
   }
 
 
@@ -771,21 +862,27 @@ public:
   template <class D, class T>
   std::vector<D> getDataFromPropertyRecursive(Property* prop) {
 
+    typedef typename CanonicalName<T>::type Tcan;
+
     { // Try to return data of type D from a property of type T
-      TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop);
+      TypedProperty<Tcan>* castedProp = dynamic_cast<TypedProperty<Tcan>*>(prop);
       if (castedProp) {
         // Succeeded, return a buffer of the data (copy while converting type)
-        return std::vector<D>(castedProp->data.begin(), castedProp->data.end());
+        std::vector<D> castedVec;
+        for (Tcan& v : castedProp->data) {
+          castedVec.push_back(static_cast<D>(v));
+        }
+        return castedVec;
       }
     }
 
-    HalfSize<T> halfType;
-    if (halfType.hasChildType) {
-      return getDataFromPropertyRecursive<D, typename HalfSize<T>::type>(prop);
+    TypeChain<Tcan> chainType;
+    if (chainType.hasChildType) {
+      return getDataFromPropertyRecursive<D, typename TypeChain<Tcan>::type>(prop);
     } else {
       // No smaller type to try, failure
-      throw std::runtime_error("PLY parser: property " + prop->name +
-                               " cannot be coerced to requested type. Has type " + prop->propertyTypeName());
+      throw std::runtime_error("PLY parser: property " + prop->name + " cannot be coerced to requested type " +
+                               typeName<D>() + ". Has type " + prop->propertyTypeName());
     }
   }
 
@@ -802,26 +899,34 @@ public:
    */
   template <class D, class T>
   std::vector<std::vector<D>> getDataFromListPropertyRecursive(Property* prop) {
+    typedef typename CanonicalName<T>::type Tcan;
 
-    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop);
+    TypedListProperty<Tcan>* castedProp = dynamic_cast<TypedListProperty<Tcan>*>(prop);
     if (castedProp) {
       // Succeeded, return a buffer of the data (copy while converting type)
-      std::vector<std::vector<D>> result;
-      for (std::vector<T>& subList : castedProp->data) {
-        result.emplace_back(subList.begin(), subList.end());
+      std::vector<std::vector<D>> castedListVec;
+      for (std::vector<Tcan>& l : castedProp->data) {
+        std::vector<D> newL;
+        for (Tcan& v : l) {
+          newL.push_back(static_cast<D>(v));
+        }
+        castedListVec.push_back(newL);
       }
-      return result;
+      return castedListVec;
     }
 
-    HalfSize<T> halfType;
-    if (halfType.hasChildType) {
-      return getDataFromListPropertyRecursive<D, typename HalfSize<T>::type>(prop);
+    TypeChain<Tcan> chainType;
+    if (chainType.hasChildType) {
+      return getDataFromListPropertyRecursive<D, typename TypeChain<Tcan>::type>(prop);
     } else {
       // No smaller type to try, failure
-      throw std::runtime_error("PLY parser: list property " + prop->name + " cannot be coerced to requested type");
+      throw std::runtime_error("PLY parser: list property " + prop->name +
+                               " cannot be coerced to requested type list " + typeName<D>() + ". Has type list " +
+                               prop->propertyTypeName());
     }
   }
 };
+
 
 // Some string helpers
 namespace {
@@ -1056,7 +1161,19 @@ public:
    *
    * @return The indices into the vertex elements for each face. Usually 0-based, though there are no formal rules.
    */
-  std::vector<std::vector<size_t>> getFaceIndices(); // defined below, because templates.
+  std::vector<std::vector<size_t>> getFaceIndices() {
+
+    for (std::string f : std::vector<std::string>{"face"}) {
+      for (std::string p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
+        try {
+          return getElement(f).getListPropertyAnySign<size_t>(p);
+        } catch (std::runtime_error e) {
+          // that's fine
+        }
+      }
+    }
+    throw std::runtime_error("PLY parser: could not find vertex indices attribute under any common name");
+  }
 
 
   /**
@@ -1089,7 +1206,7 @@ public:
     getElement(vertexName).addProperty<double>("y", yPos);
     getElement(vertexName).addProperty<double>("z", zPos);
   }
-  
+
   /**
    * @brief Common-case helper set mesh vertex colors. Creates a vertex element, if necessary.
    *
@@ -1185,10 +1302,14 @@ public:
   }
 
 
+  /**
+   * @brief Comments for the file. When writing, each entry will be written as a sequential comment line.
+   */
+  std::vector<std::string> comments;
+
 private:
   std::vector<Element> elements;
-  std::vector<std::string> comments;
-  const int majorVersion = 1; // I'll buy you a beer if these ever get bumped
+  const int majorVersion = 1; // I'll buy you a drink if these ever get bumped
   const int minorVersion = 0;
 
   DataFormat inputDataFormat = DataFormat::ASCII;  // set when reading from a file
@@ -1402,6 +1523,9 @@ private:
     for (std::string& comment : comments) {
       outStream << "comment " << comment << "\n";
     }
+    outStream << "comment "
+              << "Written with hapPLY (https://github.com/nmwsharp/happly)"
+              << "\n";
 
     // Write elements (and their properties)
     for (Element& e : elements) {
@@ -1413,54 +1537,4 @@ private:
   }
 };
 
-// Specialization for size_t. It's useful to always look for indices as size_t, but some files store them with a signed
-// type (usually int).
-// This automatically handles that case.
-template <>
-inline std::vector<std::vector<size_t>> Element::getListProperty(std::string propertyName) {
-
-  // Find the property
-  std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
-
-  // Get a copy of the data with auto-promoting type magic
-  try {
-    return getDataFromListPropertyRecursive<size_t, size_t>(prop.get());
-  } catch (std::runtime_error orig_e) {
-
-    try {
-      std::vector<std::vector<int>> intResult = getListProperty<int>(propertyName);
-
-      // Check sign while copying
-      std::vector<std::vector<size_t>> copiedResult;
-      for (auto& list : intResult) {
-        for (auto& val : list) {
-          if (val < 0) {
-            throw std::runtime_error("converted int is negative");
-          }
-        }
-        copiedResult.emplace_back(list.begin(), list.end());
-      }
-
-      return copiedResult;
-    } catch (std::runtime_error new_e) {
-      throw orig_e;
-    }
-
-    throw orig_e;
-  }
-}
-
-// Actual implementation for getFaceIndices. Needs to come after the specialization of getListProperty() above.
-inline std::vector<std::vector<size_t>> PLYData::getFaceIndices() {
-  for (std::string f : std::vector<std::string>{"face"}) {
-    for (std::string p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
-      try {
-        return getElement(f).getListProperty<size_t>(p);
-      } catch (std::runtime_error e) {
-        // that's fine
-      }
-    }
-  }
-  throw std::runtime_error("PLY parser: could not find vertex indices attribute under any common name");
-}
 } // namespace happly
