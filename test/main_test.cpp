@@ -777,14 +777,15 @@ TEST(TypePromotionTest, PromoteSigned) {
   std::vector<short> dataS{1, -3, 5};
   std::vector<int> dataI{1, -3, 5};
   std::vector<long long int> dataL{1, -3, 5};
+  std::vector<int64_t> data64{1, -3, 5};
 
   EXPECT_EQ(dataC, ply.getElement("test_elem").getProperty<char>("data"));
   EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<int16_t>("data"));
   EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<short>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<int32_t>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<int>("data"));
-  EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<int64_t>("data"));
   EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<long long int>("data"));
+  EXPECT_EQ(data64, ply.getElement("test_elem").getProperty<int64_t>("data"));
 }
 
 TEST(TypePromotionTest, DontPromoteAcrossSign) {
