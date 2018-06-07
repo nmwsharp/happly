@@ -55,7 +55,8 @@ target_link_libraries(ply-test gtest)
 
 target_include_directories(ply-test PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-include(GoogleTest)
+include(GoogleTest RESULT_VARIABLE test_path)
+message("found GTest at ${test_path}")
 
 # Add cmake test target  ("make test")
 enable_testing()
