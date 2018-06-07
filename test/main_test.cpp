@@ -819,6 +819,30 @@ TEST(TypePromotionTest, PromoteFaceInd) {
   EXPECT_EQ(faceIndsS, faceIndGet);
 }
 
+TEST(TypePromotionTest, FaceIndSign) {
+
+  happly::PLYData ply;
+  ply.addElement("face", 3);
+  std::vector<std::vector<short>> faceInds{{1, 3, 4}, {0, -2, 4, 5}, {1, 1, 1}};
+  std::vector<std::vector<int>> faceIndsI{{1, 3, 4}, {0, -2, 4, 5}, {1, 1, 1}};
+  std::vector<std::vector<unsigned int>> faceIndsU{{1, 3, 4}, {0, 2, 4, 5}, {1, 1, 1}};
+  ply.getElement("face").addListProperty("vertex_indices", faceInds);
+
+  std::vector<std::vector<int>> faceIndGetI = ply.getFaceIndices<int>();
+  EXPECT_EQ(faceIndsI, faceIndGetI);
+  
+  std::vector<std::vector<unsigned int>> faceIndGetU = ply.getFaceIndices<unsigned int>();
+  EXPECT_NE(faceIndsU, faceIndGetU);
+}
+
+TEST(TypePromotionTest, FaceIndThrow) {
+
+  happly::PLYData ply;
+  ply.addElement("face", 3);
+  std::vector<std::vector<uint64_t>> faceInds{{1, 3, 1L << 40}, {0, 2, 4, 5}, {1, 1, 1}};
+  EXPECT_THROW(ply.getElement("face").addListProperty("vertex_indices", faceInds), std::runtime_error);
+}
+
 // === Test reading mesh-like files
 TEST(MeshTest, ReadWriteASCIIMesh) {
 

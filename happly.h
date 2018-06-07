@@ -144,6 +144,7 @@ public:
    */
   TypedProperty(std::string name_) : Property(name_) {
     if (typeName<T>() == "unknown") {
+      // TODO should really be a compile-time error
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
   };
@@ -409,8 +410,8 @@ public:
   int listCountBytes = -1;
 };
 
-// outstream doesn't do what we want with int8_ts, these specializations supersede the general behavior to ensure int8_ts
-// get written correctly.
+// outstream doesn't do what we want with int8_ts, these specializations supersede the general behavior to ensure
+// int8_ts get written correctly.
 template <>
 inline void TypedListProperty<uint8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
   std::vector<uint8_t>& elemList = data[iElement];
@@ -720,8 +721,7 @@ public:
    * @brief Get a vector of lists of data from a property for this element. Automatically promotes to larger types.
    * Unlike getListProperty(), this method will additionally convert between types of different sign (eg, requesting and
    * int32 would get data from a uint32); doing so naively converts between signed and unsigned types. This is typically
-   * useful for data representing indices, which might be stored as signed or unsigned numbers. Throws if requested data
-   * is unavailable.
+   * useful for data representing indices, which might be stored as signed or unsigned numbers.
    *
    * @tparam T The type of data requested
    * @param propertyName The name of the property to get.
@@ -1157,22 +1157,25 @@ public:
   }
 
   /**
-   * @brief Common-case helper to get face indices for a mesh
+   * @brief Common-case helper to get face indices for a mesh. If not template type is given, size_t is used. Naively
+   * converts to requested signedness, which may lead to unexpected values if an unsigned type is used and file contains
+   * negative values.
    *
    * @return The indices into the vertex elements for each face. Usually 0-based, though there are no formal rules.
    */
-  std::vector<std::vector<size_t>> getFaceIndices() {
+  template <typename T = size_t>
+  std::vector<std::vector<T>> getFaceIndices() {
 
     for (std::string f : std::vector<std::string>{"face"}) {
       for (std::string p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
         try {
-          return getElement(f).getListPropertyAnySign<size_t>(p);
+          return getElement(f).getListPropertyAnySign<T>(p);
         } catch (std::runtime_error e) {
           // that's fine
         }
       }
     }
-    throw std::runtime_error("PLY parser: could not find vertex indices attribute under any common name");
+    throw std::runtime_error("PLY parser: could not find face vertex indices attribute under any common name.");
   }
 
 
@@ -1277,11 +1280,13 @@ public:
 
 
   /**
-   * @brief Common-case helper to set face indices. Creates a face element if needed.
+   * @brief Common-case helper to set face indices. Creates a face element if needed. The input type will be casted to a
+   * 32 bit integer of the same signedness.
    *
    * @param indices The indices into the vertex list around each face.
    */
-  void addFaceIndices(std::vector<std::vector<size_t>>& indices) {
+  template <typename T>
+  void addFaceIndices(std::vector<std::vector<T>>& indices) {
 
     std::string faceName = "face";
     size_t N = indices.size();
@@ -1291,14 +1296,25 @@ public:
       addElement(faceName, N);
     }
 
-    // Shrink type to int
-    std::vector<std::vector<int>> intInds;
-    for (std::vector<size_t>& l : indices) {
-      intInds.emplace_back(l.begin(), l.end());
+    // Cast to 32 bit
+    typedef typename std::conditional<std::is_signed<T>::value, int32_t, uint32_t>::type IndType;
+    std::vector<std::vector<IndType>> intInds;
+    for (std::vector<T>& l : indices) {
+      std::vector<IndType> thisInds;
+      for (T& val : l) {
+        IndType valConverted = static_cast<IndType>(val);
+        if (valConverted != val) {
+          throw std::runtime_error("Index value " + std::to_string(val) +
+                                   " could not be converted to a .ply integer without loss of data. Note that .ply "
+                                   "only supports 32-bit ints.");
+        }
+        thisInds.push_back(valConverted);
+      }
+      intInds.push_back(thisInds);
     }
 
     // Store
-    getElement(faceName).addListProperty<int>("vertex_indices", intInds);
+    getElement(faceName).addListProperty<IndType>("vertex_indices", intInds);
   }
 
 
