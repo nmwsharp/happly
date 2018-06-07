@@ -11,10 +11,3 @@ before_script:
   - cmake ..
 
 script: make && ./ply-test
-
-before_install:
-  - mkdir $HOME/usr
-  - export PATH="$HOME/usr/bin:$PATH"
-  - wget https://cmake.org/files/v3.11/cmake-3.11.1-Linux-x86_64.sh
-  - chmod +x cmake-3.11.1-Linux-x86_64.sh
-  - ./cmake-3.11.1-Linux-x86_64.sh --prefix=$HOME/usr --exclude-subdir --skip-license
