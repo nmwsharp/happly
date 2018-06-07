@@ -150,9 +150,9 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
 
 - `void addVertexColors(std::vector<std::array<double, 3>>& vertexColors)` Adds r,g,b vertex colors positions to an object, under the element name "vertex". Assumes input is in [0.0,1.0], and internally converts to 0-255 char values
 
-- `std::vector<std::vector<size_t>> getFaceIndices()` Returns indices in to a vertex list for each face. Usually 0-indexed, but there are no formal rules in the format.
+- `std::vector<std::vector<T>> getFaceIndices()` Returns indices in to a vertex list for each face. Usually 0-indexed, but there are no formal rules in the format. Supports type promotion as in `getProperty()`, and furthermore converts signed to unsigned and vice-versa, though the conversion is performed naively.
 
-- `void addFaceIndices(std::vector<std::vector<size_t>>& indices)` Adds vertex indices for faces to an object, under the element name "face" with the property name "vertex_indices".
+- `void addFaceIndices(std::vector<std::vector<T>>& indices)` Adds vertex indices for faces to an object, under the element name "face" with the property name "vertex_indices". Automatically converts to a 32-bit integer type with the same signedness as the input type, and throws if the data cannot be converted to that type.
 
 
 ## Known issues:
@@ -166,4 +166,4 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
 - Bindings for Python, Matlab?
 
 ## Author
-By [Nicholas Sharp](http://www.nmwsharp.com). Credit to [Keenan Crane](http://www.keenan.is/here) for the logo!
+By [Nicholas Sharp](http://www.nmwsharp.com). Credit to [Keenan Crane](http://www.keenan.is/here) for early feedback and the logo!
