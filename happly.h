@@ -345,13 +345,13 @@ public:
   }
 
   /**
-   * @brief (reading) Write a header entry for this property.
+   * @brief (reading) Write a header entry for this property. Note that we already use "uchar" for the list count type.
    *
    * @param outStream Stream to write to.
    */
   virtual void writeHeader(std::ofstream& outStream) override {
-    // NOTE: We ALWAYS use int as the list count output type
-    outStream << "property list uint " << typeName<T>() << " " << name << "\n";
+    // NOTE: We ALWAYS use uchar as the list count output type
+    outStream << "property list uchar " << typeName<T>() << " " << name << "\n";
   }
 
   /**
@@ -362,6 +362,13 @@ public:
    */
   virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
+  
+    // Get the number of list elements as a uchar, and ensure the value fits
+    uint8_t count = elemList.size();
+    if(count != elemList.size()) {
+      throw std::runtime_error("List property has an element with more entries than fit in a uchar. See note in README.");
+    }
+
     outStream << elemList.size();
     outStream.precision(std::numeric_limits<T>::max_digits10);
     for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
@@ -377,8 +384,14 @@ public:
    */
   virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
-    unsigned int count = elemList.size();
-    outStream.write((char*)&count, sizeof(int));
+
+    // Get the number of list elements as a uchar, and ensure the value fits
+    uint8_t count = elemList.size();
+    if(count != elemList.size()) {
+      throw std::runtime_error("List property has an element with more entries than fit in a uchar. See note in README.");
+    }
+
+    outStream.write((char*)&count, sizeof(uint8_t));
     for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
       outStream.write((char*)&elemList[iEntry], sizeof(T));
     }
