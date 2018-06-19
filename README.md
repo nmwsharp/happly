@@ -75,7 +75,7 @@ happly::PLYData plyIn("my_mesh_file.ply");
 
 // Get mesh-style data from the object
 std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
-std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices();
+std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices<size_t>();
 ```
 
 Write mesh-like data
