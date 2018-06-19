@@ -166,7 +166,7 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
 - Add common-case helpers for point clouds
 - Bindings for Python, Matlab?
 
-## Author
+---
 By [Nicholas Sharp](http://www.nmwsharp.com). Credit to [Keenan Crane](http://www.keenan.is/here) for early feedback and the logo!
 
 Development of this software was funded in part by NSF Awards 1717320, and gifts from Adobe Research and Autodesk, Inc.
