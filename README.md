@@ -1,5 +1,5 @@
 # hapPLY
-![](https://travis-ci.com/nmwsharp/happly.svg?branch=master)
+![](https://travis-ci.com/nmwsharp/happly.svg?branch=test)
 
 <p align="center">
 <img src="https://github.com/nmwsharp/happly/blob/master/misc/happly_logo.jpg" width="200"> 
