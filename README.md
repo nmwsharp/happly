@@ -2,7 +2,7 @@
 ![](https://travis-ci.com/nmwsharp/happly.svg?branch=test)
 
 <p align="center">
-<img src="https://github.com/nmwsharp/happly/blob/master/misc/happly_logo.jpg" width="200"> 
+<img src="https://github.com/nmwsharp/happly/blob/test/misc/happly_logo.jpg" width="200"> 
 </p>
 <p align="center">A header-only C++ reader/writer for the PLY file format. Parse .ply happily! <p align="center">
 
