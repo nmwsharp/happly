@@ -50,7 +50,7 @@ std::vector<int> elementA_prop2;
 std::vector<std::vector<double>> elementB_listProp;
 
 // Create an empty object
-happly::PLYData plyOut();
+happly::PLYData plyOut;
 
 // Add elements
 plyOut.addElement("elementA", 20);
@@ -88,7 +88,7 @@ std::vector<std::array<double, 3>> meshVertexColors;
 std::vector<std::vector<size_t>> meshFaceIndices;
 
 // Create an empty object
-happly::PLYData plyOut();
+happly::PLYData plyOut;
 
 // Add mesh data (elements are created automatically)
 plyOut.addVertexPositions(meshVertexPositions);
