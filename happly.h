@@ -639,6 +639,22 @@ public:
   std::vector<std::unique_ptr<Property>> properties;
 
   /**
+   * @brief Check if a property exists.
+   * 
+   * @param target The name of the property to get.
+   *
+   * @return Whether the target property exists.
+   */
+  bool hasProperty(std::string target) {
+    for (std::unique_ptr<Property>& prop : properties) {
+      if (prop->name == target) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * @brief Low-level method to get a pointer to a property. Users probably don't need to call this.
    *
    * @param target The name of the property to get.
