@@ -96,7 +96,7 @@ public:
    *
    * @param name_
    */
-  Property(std::string name_) : name(name_){};
+  Property(const std::string& name_) : name(name_){};
   virtual ~Property(){};
 
   std::string name;
@@ -107,7 +107,7 @@ public:
    * @param tokens The list of property tokens for the element.
    * @param currEntry Index in to tokens, updated after this property is read.
    */
-  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) = 0;
+  virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) = 0;
 
   /**
    * @brief (binary reading) Copy the next value of this property from a stream of bits.
@@ -166,7 +166,7 @@ public:
    *
    * @param name_
    */
-  TypedProperty(std::string name_) : Property(name_) {
+  TypedProperty(const std::string& name_) : Property(name_) {
     if (typeName<T>() == "unknown") {
       // TODO should really be a compile-time error
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
@@ -179,7 +179,7 @@ public:
    * @param name_
    * @param data_
    */
-  TypedProperty(std::string name_, std::vector<T>& data_) : Property(name_), data(data_) {
+  TypedProperty(const std::string& name_, const std::vector<T>& data_) : Property(name_), data(data_) {
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
@@ -193,7 +193,7 @@ public:
    * @param tokens The list of property tokens for the element.
    * @param currEntry Index in to tokens, updated after this property is read.
    */
-  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) override {
+  virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) override {
     T val;
     std::istringstream iss(tokens[currEntry]);
     iss >> val;
@@ -274,7 +274,7 @@ inline void TypedProperty<int8_t>::writeDataASCII(std::ofstream& outStream, size
   outStream << (int)data[iElement];
 }
 template <>
-inline void TypedProperty<uint8_t>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+inline void TypedProperty<uint8_t>::parseNext(const std::vector<std::string>& tokens, size_t& currEntry) {
   std::istringstream iss(tokens[currEntry]);
   int intVal;
   iss >> intVal;
@@ -282,7 +282,7 @@ inline void TypedProperty<uint8_t>::parseNext(std::vector<std::string>& tokens, 
   currEntry++;
 }
 template <>
-inline void TypedProperty<int8_t>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+inline void TypedProperty<int8_t>::parseNext(const std::vector<std::string>& tokens, size_t& currEntry) {
   std::istringstream iss(tokens[currEntry]);
   int intVal;
   iss >> intVal;
@@ -303,7 +303,7 @@ public:
    *
    * @param name_
    */
-  TypedListProperty(std::string name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_) {
+  TypedListProperty(const std::string& name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_) {
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
@@ -315,7 +315,7 @@ public:
    * @param name_
    * @param data_
    */
-  TypedListProperty(std::string name_, std::vector<std::vector<T>>& data_) : Property(name_), data(data_) {
+  TypedListProperty(const std::string& name_, const std::vector<std::vector<T>>& data_) : Property(name_), data(data_) {
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
@@ -329,7 +329,7 @@ public:
    * @param tokens The list of property tokens for the element.
    * @param currEntry Index in to tokens, updated after this property is read.
    */
-  virtual void parseNext(std::vector<std::string>& tokens, size_t& currEntry) override {
+  virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) override {
 
     std::istringstream iss(tokens[currEntry]);
     size_t count;
@@ -468,7 +468,7 @@ inline void TypedListProperty<int8_t>::writeDataASCII(std::ofstream& outStream, 
   }
 }
 template <>
-inline void TypedListProperty<uint8_t>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+inline void TypedListProperty<uint8_t>::parseNext(const std::vector<std::string>& tokens, size_t& currEntry) {
 
   std::istringstream iss(tokens[currEntry]);
   size_t count;
@@ -486,7 +486,7 @@ inline void TypedListProperty<uint8_t>::parseNext(std::vector<std::string>& toke
   data.push_back(thisVec);
 }
 template <>
-inline void TypedListProperty<int8_t>::parseNext(std::vector<std::string>& tokens, size_t& currEntry) {
+inline void TypedListProperty<int8_t>::parseNext(const std::vector<std::string>& tokens, size_t& currEntry) {
 
   std::istringstream iss(tokens[currEntry]);
   size_t count;
@@ -514,8 +514,8 @@ inline void TypedListProperty<int8_t>::parseNext(std::vector<std::string>& token
  *
  * @return A new Property with the proper type.
  */
-inline std::unique_ptr<Property> createPropertyWithType(std::string name, std::string typeStr, bool isList,
-                                                        std::string listCountTypeStr) {
+inline std::unique_ptr<Property> createPropertyWithType(const std::string& name, const std::string& typeStr, bool isList,
+                                                        const std::string& listCountTypeStr) {
 
   // == Figure out how many bytes the list count field has, if this is a list type
   // Note: some files seem to use signed types here, we read the width but always parse as if unsigned
@@ -632,7 +632,7 @@ public:
    * @param name_ Name of the element type (eg, "vertices")
    * @param count_ Number of instances of this element.
    */
-  Element(std::string name_, size_t count_) : name(name_), count(count_) {}
+  Element(const std::string& name_, size_t count_) : name(name_), count(count_) {}
 
   std::string name;
   size_t count;
@@ -645,7 +645,7 @@ public:
    *
    * @return Whether the target property exists.
    */
-  bool hasProperty(std::string target) {
+  bool hasProperty(const std::string& target) {
     for (std::unique_ptr<Property>& prop : properties) {
       if (prop->name == target) {
         return true;
@@ -661,7 +661,7 @@ public:
    *
    * @return A (unique_ptr) pointer to the property.
    */
-  std::unique_ptr<Property>& getPropertyPtr(std::string target) {
+  std::unique_ptr<Property>& getPropertyPtr(const std::string& target) {
     for (std::unique_ptr<Property>& prop : properties) {
       if (prop->name == target) {
         return prop;
@@ -678,7 +678,7 @@ public:
    * @param data The data for the property. Must have the same length as the number of elements.
    */
   template <class T>
-  void addProperty(std::string propertyName, std::vector<T>& data) {
+  void addProperty(const std::string& propertyName, const std::vector<T>& data) {
 
     if (data.size() != count) {
       throw std::runtime_error("PLY write: new property " + propertyName + " has size which does not match element");
@@ -707,7 +707,7 @@ public:
    * @param data The data for the property. Outer vector must have the same length as the number of elements.
    */
   template <class T>
-  void addListProperty(std::string propertyName, std::vector<std::vector<T>>& data) {
+  void addListProperty(const std::string& propertyName, const std::vector<std::vector<T>>& data) {
 
     if (data.size() != count) {
       throw std::runtime_error("PLY write: new property " + propertyName + " has size which does not match element");
@@ -723,7 +723,7 @@ public:
 
     // Copy to canonical type. Often a no-op, but takes care of standardizing widths across platforms.
     std::vector<std::vector<typename CanonicalName<T>::type>> canonicalListVec;
-    for (std::vector<T>& subList : data) {
+    for (const std::vector<T>& subList : data) {
       canonicalListVec.emplace_back(subList.begin(), subList.end());
     }
 
@@ -741,7 +741,7 @@ public:
    * @return The data.
    */
   template <class T>
-  std::vector<T> getProperty(std::string propertyName) {
+  std::vector<T> getProperty(const std::string& propertyName) {
 
     // Find the property
     std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
@@ -760,7 +760,7 @@ public:
    * @return The data.
    */
   template <class T>
-  std::vector<std::vector<T>> getListProperty(std::string propertyName) {
+  std::vector<std::vector<T>> getListProperty(const std::string& propertyName) {
 
     // Find the property
     std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
@@ -782,7 +782,7 @@ public:
    * @return The data.
    */
   template <class T>
-  std::vector<std::vector<T>> getListPropertyAnySign(std::string propertyName) {
+  std::vector<std::vector<T>> getListPropertyAnySign(const std::string& propertyName) {
 
     // Find the property
     std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
@@ -984,7 +984,7 @@ public:
 // Some string helpers
 namespace {
 
-inline std::string trimSpaces(std::string input) {
+inline std::string trimSpaces(const std::string& input) {
   size_t start = 0;
   while (start < input.size() && input[start] == ' ') start++;
   size_t end = input.size();
@@ -992,7 +992,7 @@ inline std::string trimSpaces(std::string input) {
   return input.substr(start, end - start);
 }
 
-inline std::vector<std::string> tokenSplit(std::string input) {
+inline std::vector<std::string> tokenSplit(const std::string& input) {
   std::vector<std::string> result;
   size_t curr = 0;
   size_t found = 0;
@@ -1013,7 +1013,7 @@ inline std::vector<std::string> tokenSplit(std::string input) {
   return result;
 }
 
-inline bool startsWith(std::string input, std::string query) { return input.compare(0, query.length(), query) == 0; }
+inline bool startsWith(const std::string& input, const std::string& query) { return input.compare(0, query.length(), query) == 0; }
 }; // namespace
 
 
@@ -1034,7 +1034,7 @@ public:
    * @param filename The file to read from.
    * @param verbose If true, print useful info about the file to stdout
    */
-  PLYData(std::string filename, bool verbose = false) {
+  PLYData(const std::string& filename, bool verbose = false) {
 
     using std::cout;
     using std::endl;
@@ -1099,7 +1099,7 @@ public:
    * @param filename The file to write to.
    * @param format The format to use (binary or ascii?)
    */
-  void write(std::string filename, DataFormat format = DataFormat::ASCII) {
+  void write(const std::string& filename, DataFormat format = DataFormat::ASCII) {
     outputDataFormat = format;
 
     validate();
@@ -1129,7 +1129,7 @@ public:
    *
    * @return A reference to the element type.
    */
-  Element& getElement(std::string target) {
+  Element& getElement(const std::string& target) {
     for (Element& e : elements) {
       if (e.name == target) return e;
     }
@@ -1144,7 +1144,7 @@ public:
    *
    * @return True if exists.
    */
-  bool hasElement(std::string target) {
+  bool hasElement(const std::string& target) {
     for (Element& e : elements) {
       if (e.name == target) return true;
     }
@@ -1158,7 +1158,7 @@ public:
    * @param name The name of the new element type ("vertices").
    * @param count The number of elements of this type.
    */
-  void addElement(std::string name, size_t count) { elements.emplace_back(name, count); }
+  void addElement(const std::string& name, size_t count) { elements.emplace_back(name, count); }
 
   // === Common-case helpers
 
@@ -1170,7 +1170,7 @@ public:
    *
    * @return A vector of vertex positions.
    */
-  std::vector<std::array<double, 3>> getVertexPositions(std::string vertexElementName = "vertex") {
+  std::vector<std::array<double, 3>> getVertexPositions(const std::string& vertexElementName = "vertex") {
 
     std::vector<double> xPos = getElement(vertexElementName).getProperty<double>("x");
     std::vector<double> yPos = getElement(vertexElementName).getProperty<double>("y");
@@ -1193,7 +1193,7 @@ public:
    *
    * @return A vector of vertex colors (unsigned chars [0,255]).
    */
-  std::vector<std::array<unsigned char, 3>> getVertexColors(std::string vertexElementName = "vertex") {
+  std::vector<std::array<unsigned char, 3>> getVertexColors(const std::string& vertexElementName = "vertex") {
 
     std::vector<unsigned char> r = getElement(vertexElementName).getProperty<unsigned char>("red");
     std::vector<unsigned char> g = getElement(vertexElementName).getProperty<unsigned char>("green");
@@ -1219,8 +1219,8 @@ public:
   template <typename T = size_t>
   std::vector<std::vector<T>> getFaceIndices() {
 
-    for (std::string f : std::vector<std::string>{"face"}) {
-      for (std::string p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
+    for (const std::string& f : std::vector<std::string>{"face"}) {
+      for (const std::string& p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
         try {
           return getElement(f).getListPropertyAnySign<T>(p);
         } catch (std::runtime_error e) {
@@ -1589,7 +1589,7 @@ private:
     outStream << majorVersion << "." << minorVersion << "\n";
 
     // Write comments
-    for (std::string& comment : comments) {
+    for (const std::string& comment : comments) {
       outStream << "comment " << comment << "\n";
     }
     outStream << "comment "
