@@ -812,7 +812,7 @@ public:
       // First, try the usual approach, looking for a version of the property with the same signed-ness and possibly
       // smaller size
       return getDataFromListPropertyRecursive<T, T>(prop.get());
-    } catch (std::runtime_error orig_e) {
+    } catch (const std::runtime_error& orig_e) {
 
       // If the usual approach fails, look for a version with opposite signed-ness
       try {
@@ -835,7 +835,7 @@ public:
         }
 
         return origSignResult;
-      } catch (std::runtime_error new_e) {
+      } catch (const std::runtime_error& new_e) {
         throw orig_e;
       }
 
@@ -1243,7 +1243,7 @@ public:
       for (const std::string& p : std::vector<std::string>{"vertex_indices", "vertex_index"}) {
         try {
           return getElement(f).getListPropertyAnySign<T>(p);
-        } catch (std::runtime_error e) {
+        } catch (const std::runtime_error& e) {
           // that's fine
         }
       }
