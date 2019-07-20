@@ -1,8 +1,12 @@
 branches:
   only:
-  - test 
+  - master
 
 language: cpp
+
+os:
+ - linux
+ - osx
 
 compiler:
   - gcc
