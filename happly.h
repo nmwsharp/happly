@@ -3,6 +3,8 @@
 /* A header-only implementation of the .ply file format.
  * https://github.com/nmwsharp/happly
  * By Nicholas Sharp - nsharp@cs.cmu.edu
+ *
+ * Version 2, July 20, 2019
  */
 
 /*
@@ -28,6 +30,20 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
+
+// clang-format off
+/*
+
+ === Changelog ===
+
+  Significant changes to the file recorded here.
+
+  - Version 2 (July 20, 2019)     Catch exceptions by const reference.
+  - Version 1 (undated)           Initial version. Unnamed changes before version numbering.
+
+*/
+// clang-format on
 
 #include <array>
 #include <cctype>
