@@ -1620,6 +1620,12 @@ private:
         continue;
       }
 
+      // Parse a comment
+      if (startsWith(line, "obj_info")) {
+        // skip this command found in old files
+        continue;
+      }
+
       // Parse an element
       else if (startsWith(line, "element")) {
         vector<string> tokens = tokenSplit(line);
