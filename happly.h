@@ -101,28 +101,6 @@ template <> struct CanonicalName<size_t>                    { typedef std::condi
 // clang-format on
 } // namespace
 
-namespace {
-/**
- * Swap endianness.
- *
- * @param value Value to swap.
- *
- * @return Swapped value.
- */
-template <typename T>
-inline T swapEndian(T value) {
-  // https://stackoverflow.com/questions/105252/how-do-i-convert-between-big-endian-and-little-endian-values-in-c
-  static_assert(CHAR_BIT == 8, "CHAR_BIT != 8");
-  union {
-    T u;
-    unsigned char u8[sizeof(T)];
-  } source, dest;
-  source.u = value;
-  for (size_t k = 0; k < sizeof(T); k++) dest.u8[k] = source.u8[sizeof(T) - k - 1];
-  return dest.u;
-}
-}; // namespace
-
 /**
  * @brief A generic property, which is associated with some element. Can be plain Property or a ListProperty, of some
  * type.  Generally, the user should not need to interact with these directly, but they are exposed in case someone
@@ -215,6 +193,29 @@ public:
    */
   virtual std::string propertyTypeName() = 0;
 };
+
+namespace {
+/**
+ * Swap endianness.
+ *
+ * @param value Value to swap.
+ *
+ * @return Swapped value.
+ */
+template <typename T>
+inline T swapEndian(T value) {
+  // https://stackoverflow.com/questions/105252/how-do-i-convert-between-big-endian-and-little-endian-values-in-c
+  static_assert(CHAR_BIT == 8, "CHAR_BIT != 8");
+  union {
+    T u;
+    unsigned char u8[sizeof(T)];
+  } source, dest;
+  source.u = value;
+  for (size_t k = 0; k < sizeof(T); k++) dest.u8[k] = source.u8[sizeof(T) - k - 1];
+  return dest.u;
+}
+}; // namespace
+
 
 /**
  * @brief A property which takes a single value (not a list).
