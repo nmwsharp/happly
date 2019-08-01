@@ -55,11 +55,12 @@ SOFTWARE.
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <climits>
 
 // General namespace wrapping all Happly things.
 namespace happly {
 
-// Enum specifying binary or ASCII filetypes. Binary can be little-endian 
+// Enum specifying binary or ASCII filetypes. Binary can be little-endian
 // (default) or big endian.
 enum class DataFormat { ASCII, Binary, BinarySwapEndian };
 
@@ -101,27 +102,26 @@ template <> struct CanonicalName<size_t>                    { typedef std::condi
 } // namespace
 
 namespace {
-  /**
-   * Swap endianness.
-   * 
-   * @param value Value to swap.
-   * 
-   * @return Swapped value.
-   */
+/**
+ * Swap endianness.
+ *
+ * @param value Value to swap.
+ *
+ * @return Swapped value.
+ */
 template <typename T>
 inline T swapEndian(T value) {
   // https://stackoverflow.com/questions/105252/how-do-i-convert-between-big-endian-and-little-endian-values-in-c
   static_assert(CHAR_BIT == 8, "CHAR_BIT != 8");
   union {
-    T             u;
+    T u;
     unsigned char u8[sizeof(T)];
   } source, dest;
   source.u = value;
-  for (size_t k = 0; k < sizeof(T); k++)
-    dest.u8[k] = source.u8[sizeof(T) - k - 1];
+  for (size_t k = 0; k < sizeof(T); k++) dest.u8[k] = source.u8[sizeof(T) - k - 1];
   return dest.u;
 }
-};
+}; // namespace
 
 /**
  * @brief A generic property, which is associated with some element. Can be plain Property or a ListProperty, of some
@@ -143,7 +143,7 @@ public:
 
   /**
    * @brief Reserve memory.
-   * 
+   *
    * @param capacity Expected number of elements.
    */
   virtual void reserve(size_t capacity) = 0;
@@ -251,12 +251,10 @@ public:
 
   /**
    * @brief Reserve memory.
-   * 
+   *
    * @param capacity Expected number of elements.
    */
-  virtual void reserve(size_t capacity) override {
-    data.reserve(capacity);
-  }
+  virtual void reserve(size_t capacity) override { data.reserve(capacity); }
 
   /**
    * @brief (ASCII reading) Parse out the next value of this property from a list of tokens.
@@ -416,7 +414,7 @@ public:
 
   /**
    * @brief Reserve memory.
-   * 
+   *
    * @param capacity Expected number of elements.
    */
   virtual void reserve(size_t capacity) override {
@@ -462,7 +460,7 @@ public:
     // Read list elements
     data.emplace_back();
     data.back().resize(count);
-    stream.read((char*)&data.back().front(), count*sizeof(T));
+    stream.read((char*)&data.back().front(), count * sizeof(T));
   }
 
   /**
@@ -475,19 +473,19 @@ public:
     // Read the size of the list
     size_t count = 0;
     stream.read(((char*)&count), listCountBytes);
-    if(listCountBytes == 8) {
+    if (listCountBytes == 8) {
       count = (size_t)swapEndian((uint64_t)count);
-    } else if(listCountBytes == 4) {
+    } else if (listCountBytes == 4) {
       count = (size_t)swapEndian((uint32_t)count);
-    } else if(listCountBytes == 2) {
+    } else if (listCountBytes == 2) {
       count = (size_t)swapEndian((uint16_t)count);
     }
 
     // Read list elements
     data.emplace_back();
     data.back().resize(count);
-    stream.read((char*)&data.back().front(), count*sizeof(T));
-    for(int i = 0; i < count; i ++) data.back()[i] = swapEndian(data.back()[i]);
+    stream.read((char*)&data.back().front(), count * sizeof(T));
+    for (size_t i = 0; i < count; i++) data.back()[i] = swapEndian(data.back()[i]);
   }
 
   /**
@@ -508,11 +506,12 @@ public:
    */
   virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
-  
+
     // Get the number of list elements as a uchar, and ensure the value fits
     uint8_t count = elemList.size();
-    if(count != elemList.size()) {
-      throw std::runtime_error("List property has an element with more entries than fit in a uchar. See note in README.");
+    if (count != elemList.size()) {
+      throw std::runtime_error(
+          "List property has an element with more entries than fit in a uchar. See note in README.");
     }
 
     outStream << elemList.size();
@@ -533,8 +532,9 @@ public:
 
     // Get the number of list elements as a uchar, and ensure the value fits
     uint8_t count = elemList.size();
-    if(count != elemList.size()) {
-      throw std::runtime_error("List property has an element with more entries than fit in a uchar. See note in README.");
+    if (count != elemList.size()) {
+      throw std::runtime_error(
+          "List property has an element with more entries than fit in a uchar. See note in README.");
     }
 
     outStream.write((char*)&count, sizeof(uint8_t));
@@ -554,8 +554,9 @@ public:
 
     // Get the number of list elements as a uchar, and ensure the value fits
     uint8_t count = elemList.size();
-    if(count != elemList.size()) {
-      throw std::runtime_error("List property has an element with more entries than fit in a uchar. See note in README.");
+    if (count != elemList.size()) {
+      throw std::runtime_error(
+          "List property has an element with more entries than fit in a uchar. See note in README.");
     }
 
     outStream.write((char*)&count, sizeof(uint8_t));
@@ -658,8 +659,8 @@ inline void TypedListProperty<int8_t>::parseNext(const std::vector<std::string>&
  *
  * @return A new Property with the proper type.
  */
-inline std::unique_ptr<Property> createPropertyWithType(const std::string& name, const std::string& typeStr, bool isList,
-                                                        const std::string& listCountTypeStr) {
+inline std::unique_ptr<Property> createPropertyWithType(const std::string& name, const std::string& typeStr,
+                                                        bool isList, const std::string& listCountTypeStr) {
 
   // == Figure out how many bytes the list count field has, if this is a list type
   // Note: some files seem to use signed types here, we read the width but always parse as if unsigned
@@ -784,7 +785,7 @@ public:
 
   /**
    * @brief Check if a property exists.
-   * 
+   *
    * @param target The name of the property to get.
    *
    * @return Whether the target property exists.
@@ -1172,7 +1173,9 @@ inline std::vector<std::string> tokenSplit(const std::string& input) {
   return result;
 }
 
-inline bool startsWith(const std::string& input, const std::string& query) { return input.compare(0, query.length(), query) == 0; }
+inline bool startsWith(const std::string& input, const std::string& query) {
+  return input.compare(0, query.length(), query) == 0;
+}
 }; // namespace
 
 
