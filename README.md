@@ -137,6 +137,11 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
   
 - `void addListProperty(std::string propertyName, std::vector<std::vector<T>>& data)` Add a new list property to an element type. `data` must be the same length as the number of elements of that type.
 
+**Misc object options**:
+
+- `std::vector<std::string> PLYData::comments` Comments included in the .ply file, one string per line. These are populated after reading and written when writing.
+
+- `std::vector<std::string> PLYData::objInfoComments` Lines prefaced with `obj_info` included in the .ply file, which are effectively a different kind of comment, one string per line. These seem to be an ad-hoc extension to .ply, but they are pretty common, so we support them.
 
 **Common-case helpers for mesh data**:
 
@@ -157,7 +162,7 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
 
 ## Known issues:
 - Writing floating-point values of `inf` or `nan` in ASCII mode is not supported, because the .ply format does not specify how they should be written (C++'s ofstream and ifstream don't even treat them consistently). These values work just fine in binary mode.
-- The `.ply` file format allows binary files to be big-endian or little-endian; hapPLY supports both, but generates code assuming the machine is little-endian. The codebase is very close to working on big-endian machines, but I don't have one to test on!
+- The `.ply` file format allows binary files to be big-endian or little-endian; hapPLY supports both, but the code assumes the platform is little-endian. The codebase is very close to working on big-endian machines, but I don't have one to test on!
 - Currently hapPLY does not allow the user to specify a type for the variable which indicates how many elements are in a list; it always uses `uchar` (and throws and error if the data does not fit in a uchar). Note that at least for mesh-like data, popular software only accepts `uchar`.
 
 

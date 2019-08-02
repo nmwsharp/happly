@@ -1565,6 +1565,12 @@ public:
    */
   std::vector<std::string> comments;
 
+
+  /**
+   * @brief obj_info comments for the file. When writing, each entry will be written as a sequential comment line.
+   */
+  std::vector<std::string> objInfoComments;
+
 private:
   std::vector<Element> elements;
   const int majorVersion = 1; // I'll buy you a drink if these ever get bumped
@@ -1638,15 +1644,17 @@ private:
 
       // Parse a comment
       if (startsWith(line, "comment")) {
-        string comment = line.substr(7);
+        string comment = line.substr(8);
         if (verbose) cout << "  - Comment: " << comment << endl;
         comments.push_back(comment);
         continue;
       }
 
-      // Parse a comment
+      // Parse an obj_info comment
       if (startsWith(line, "obj_info")) {
-        // skip this command found in old files
+        string infoComment = line.substr(9);
+        if (verbose) cout << "  - obj_info: " << infoComment << endl;
+        objInfoComments.push_back(infoComment);
         continue;
       }
 
@@ -1830,12 +1838,20 @@ private:
     outStream << majorVersion << "." << minorVersion << "\n";
 
     // Write comments
+    bool hasHapplyComment = false;
+    std::string happlyComment = "Written with hapPLY (https://github.com/nmwsharp/happly)";
     for (const std::string& comment : comments) {
+      if (comment == happlyComment) hasHapplyComment = true;
       outStream << "comment " << comment << "\n";
     }
-    outStream << "comment "
-              << "Written with hapPLY (https://github.com/nmwsharp/happly)"
-              << "\n";
+    if (!hasHapplyComment) {
+      outStream << "comment " << happlyComment << "\n";
+    }
+
+    // Write obj_info comments
+    for (const std::string& comment : objInfoComments) {
+      outStream << "obj_info " << comment << "\n";
+    }
 
     // Write elements (and their properties)
     for (Element& e : elements) {
