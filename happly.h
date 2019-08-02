@@ -39,6 +39,7 @@ SOFTWARE.
 
   Significant changes to the file recorded here.
 
+  - Version 3 (Aug 1, 2019)       Add support for big endian and obj_info
   - Version 2 (July 20, 2019)     Catch exceptions by const reference.
   - Version 1 (undated)           Initial version. Unnamed changes before version numbering.
 
@@ -62,7 +63,7 @@ namespace happly {
 
 // Enum specifying binary or ASCII filetypes. Binary can be little-endian
 // (default) or big endian.
-enum class DataFormat { ASCII, Binary, BinarySwapEndian };
+enum class DataFormat { ASCII, Binary, BinaryBigEndian };
 
 // Type name strings
 // clang-format off
@@ -146,7 +147,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNextSwapEndian(std::ifstream& stream) = 0;
+  virtual void readNextBigEndian(std::ifstream& stream) = 0;
 
   /**
    * @brief (reading) Write a header entry for this property.
@@ -177,7 +178,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinarySwapEndian(std::ofstream& outStream, size_t iElement) = 0;
+  virtual void writeDataBinaryBigEndian(std::ofstream& outStream, size_t iElement) = 0;
 
   /**
    * @brief Number of element entries for this property
@@ -195,6 +196,19 @@ public:
 };
 
 namespace {
+
+/**
+ * Check if the platform is little endian.
+ * (not foolproof, but will work on most platforms)
+ *
+ * @return true if little endian
+ */
+bool isLittleEndian() {
+  int32_t oneVal = 0x1;
+  char* numPtr = (char*)&oneVal;
+  return (numPtr[0] == 1);
+}
+
 /**
  * Swap endianness.
  *
@@ -285,7 +299,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNextSwapEndian(std::ifstream& stream) override {
+  virtual void readNextBigEndian(std::ifstream& stream) override {
     data.emplace_back();
     stream.read((char*)&data.back(), sizeof(T));
     data.back() = swapEndian(data.back());
@@ -327,7 +341,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinarySwapEndian(std::ofstream& outStream, size_t iElement) override {
+  virtual void writeDataBinaryBigEndian(std::ofstream& outStream, size_t iElement) override {
     auto value = swapEndian(data[iElement]);
     outStream.write((char*)&value, sizeof(T));
   }
@@ -469,7 +483,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNextSwapEndian(std::ifstream& stream) override {
+  virtual void readNextBigEndian(std::ifstream& stream) override {
 
     // Read the size of the list
     size_t count = 0;
@@ -550,7 +564,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinarySwapEndian(std::ofstream& outStream, size_t iElement) override {
+  virtual void writeDataBinaryBigEndian(std::ofstream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
 
     // Get the number of list elements as a uchar, and ensure the value fits
@@ -1054,10 +1068,10 @@ public:
    *
    * @param outStream The stream to write to.
    */
-  void writeDataBinarySwapEndian(std::ofstream& outStream) {
+  void writeDataBinaryBigEndian(std::ofstream& outStream) {
     for (size_t iE = 0; iE < count; iE++) {
       for (size_t iP = 0; iP < properties.size(); iP++) {
-        properties[iP]->writeDataBinarySwapEndian(outStream, iE);
+        properties[iP]->writeDataBinaryBigEndian(outStream, iE);
       }
     }
   }
@@ -1222,8 +1236,8 @@ public:
       parseBinary(inStream, verbose);
     }
     // === Parse data from an binary file
-    else if (inputDataFormat == DataFormat::BinarySwapEndian) {
-      parseBinarySwapEndian(inStream, verbose);
+    else if (inputDataFormat == DataFormat::BinaryBigEndian) {
+      parseBinaryBigEndian(inStream, verbose);
     }
     // === Parse data from an ASCII file
     else if (inputDataFormat == DataFormat::ASCII) {
@@ -1282,9 +1296,15 @@ public:
     // Write all elements
     for (Element& e : elements) {
       if (outputDataFormat == DataFormat::Binary) {
+        if (!isLittleEndian()) {
+          throw std::runtime_error("binary writing assumes little endian system");
+        }
         e.writeDataBinary(outStream);
-      } else if (outputDataFormat == DataFormat::BinarySwapEndian) {
-        e.writeDataBinarySwapEndian(outStream);
+      } else if (outputDataFormat == DataFormat::BinaryBigEndian) {
+        if (!isLittleEndian()) {
+          throw std::runtime_error("binary writing assumes little endian system");
+        }
+        e.writeDataBinaryBigEndian(outStream);
       } else if (outputDataFormat == DataFormat::ASCII) {
         e.writeDataASCII(outStream);
       }
@@ -1598,7 +1618,7 @@ private:
         inputDataFormat = DataFormat::Binary;
         if (verbose) cout << "  - Type: binary" << endl;
       } else if (typeStr == "binary_big_endian") {
-        inputDataFormat = DataFormat::BinarySwapEndian;
+        inputDataFormat = DataFormat::BinaryBigEndian;
         if (verbose) cout << "  - Type: binary big endian" << endl;
       } else {
         throw std::runtime_error("PLY parser: bad format line");
@@ -1725,6 +1745,10 @@ private:
    */
   void parseBinary(std::ifstream& inStream, bool verbose) {
 
+    if (!isLittleEndian()) {
+      throw std::runtime_error("binary reading assumes little endian system");
+    }
+
     using std::string;
     using std::vector;
 
@@ -1752,7 +1776,11 @@ private:
    * @param inStream
    * @param verbose
    */
-  void parseBinarySwapEndian(std::ifstream& inStream, bool verbose) {
+  void parseBinaryBigEndian(std::ifstream& inStream, bool verbose) {
+
+    if (!isLittleEndian()) {
+      throw std::runtime_error("binary reading assumes little endian system");
+    }
 
     using std::string;
     using std::vector;
@@ -1769,7 +1797,7 @@ private:
       }
       for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
         for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-          elem.properties[iP]->readNextSwapEndian(inStream);
+          elem.properties[iP]->readNextBigEndian(inStream);
         }
       }
     }
@@ -1792,7 +1820,7 @@ private:
     outStream << "format ";
     if (outputDataFormat == DataFormat::Binary) {
       outStream << "binary_little_endian ";
-    } else if (outputDataFormat == DataFormat::BinarySwapEndian) {
+    } else if (outputDataFormat == DataFormat::BinaryBigEndian) {
       outStream << "binary_big_endian ";
     } else if (outputDataFormat == DataFormat::ASCII) {
       outStream << "ascii ";
