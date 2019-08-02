@@ -118,7 +118,7 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
 
 - `PLYData::validate()` Perform some basic sanity checks on the object, throwing if any fail. Called internally before writing.
 
-- `PLYData::write(std::string filename, DataFormat format = DataFormat::ASCII)` Write the object to file. Specifying `DataFormat::ASCII` or `DataFormat::Binary` controls the kind of output file.
+- `PLYData::write(std::string filename, DataFormat format = DataFormat::ASCII)` Write the object to file. Specifying `DataFormat::ASCII`, `DataFormat::Binary`, or `DataFormat::BinaryBigEndian` controls the kind of output file.
 
 **Accessing and adding data to an object**:
 
@@ -157,7 +157,7 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
 
 ## Known issues:
 - Writing floating-point values of `inf` or `nan` in ASCII mode is not supported, because the .ply format does not specify how they should be written (C++'s ofstream and ifstream don't even treat them consistently). These values work just fine in binary mode.
-- The `.ply` file format allows binary files to be big-endian or little-endian; hapPLY only explicitly supports little-endian files, and basically just assumes your machine is little-endian.
+- The `.ply` file format allows binary files to be big-endian or little-endian; hapPLY supports both, but generates code assuming the machine is little-endian. The codebase is very close to working on big-endian machines, but I don't have one to test on!
 - Currently hapPLY does not allow the user to specify a type for the variable which indicates how many elements are in a list; it always uses `uchar` (and throws and error if the data does not fit in a uchar). Note that at least for mesh-like data, popular software only accepts `uchar`.
 
 
