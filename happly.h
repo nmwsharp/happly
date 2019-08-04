@@ -217,16 +217,12 @@ bool isLittleEndian() {
  * @return Swapped value.
  */
 template <typename T>
-inline T swapEndian(T value) {
-  // https://stackoverflow.com/questions/105252/how-do-i-convert-between-big-endian-and-little-endian-values-in-c
-  static_assert(CHAR_BIT == 8, "CHAR_BIT != 8");
-  union {
-    T u;
-    unsigned char u8[sizeof(T)];
-  } source, dest;
-  source.u = value;
-  for (size_t k = 0; k < sizeof(T); k++) dest.u8[k] = source.u8[sizeof(T) - k - 1];
-  return dest.u;
+T swapEndian(T val) {
+  char* bytes = reinterpret_cast<char*>(&val);
+  for (unsigned int i = 0; i < sizeof(val) / 2; i++) {
+    std::swap(bytes[sizeof(val) - 1 - i], bytes[i]);
+  }
+  return val;
 }
 }; // namespace
 
@@ -500,7 +496,9 @@ public:
     data.emplace_back();
     data.back().resize(count);
     stream.read((char*)&data.back().front(), count * sizeof(T));
-    for (size_t i = 0; i < count; i++) data.back()[i] = swapEndian(data.back()[i]);
+    for (size_t i = 0; i < count; i++) {
+      data.back()[i] = swapEndian(data.back()[i]);
+    }
   }
 
   /**
