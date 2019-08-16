@@ -1230,6 +1230,74 @@ TEST(MeshTest, ReadWriteBinarySwapMesh) {
   EXPECT_EQ(fInd, fInd2);
 }
 
+// === Test stream interfaces
+TEST(MeshTest, ReadWriteASCIIMeshStream) {
+
+  // = Read the PLY from an input stream
+  std::ifstream file ("../sampledata/platonic_shelf_ascii.ply");
+  happly::PLYData plyIn(file, false);
+  plyIn.validate();
+  file.close();
+
+  std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
+  std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices();
+
+
+  // = Write the mesh file to a stringstream
+  std::stringstream ioBuffer;
+  happly::PLYData plyOut;
+  plyOut.addVertexPositions(vPos);
+  plyOut.addFaceIndices(fInd);
+
+  plyOut.validate();
+
+  plyOut.write(ioBuffer);
+
+
+  // = Read the mesh file in again and make sure it hasn't changed
+  happly::PLYData plyIn2(ioBuffer, false);
+  plyIn2.validate();
+
+  std::vector<std::array<double, 3>> vPos2 = plyIn2.getVertexPositions();
+  std::vector<std::vector<size_t>> fInd2 = plyIn2.getFaceIndices();
+
+  DoubleArrayVecEq(vPos, vPos2);
+  EXPECT_EQ(fInd, fInd2);
+}
+
+TEST(MeshTest, ReadWriteBinaryMeshStream) {
+
+  // = Read in an interesting mesh file
+  std::ifstream file ("../sampledata/platonic_shelf_ascii.ply");
+  happly::PLYData plyIn(file, false);
+  plyIn.validate();
+  file.close();
+
+  std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
+  std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices();
+
+
+  // = Write out the mesh to a stringstream
+  std::stringstream ioBuffer;
+  happly::PLYData plyOut;
+  plyOut.addVertexPositions(vPos);
+  plyOut.addFaceIndices(fInd);
+
+  plyOut.validate();
+  plyOut.write(ioBuffer, happly::DataFormat::Binary);
+
+
+  // = Read the mesh file in again and make sure it hasn't changed
+  happly::PLYData plyIn2(ioBuffer, false);
+  plyIn2.validate();
+
+  std::vector<std::array<double, 3>> vPos2 = plyIn2.getVertexPositions();
+  std::vector<std::vector<size_t>> fInd2 = plyIn2.getFaceIndices();
+
+  DoubleArrayVecEq(vPos, vPos2);
+  EXPECT_EQ(fInd, fInd2);
+}
+
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
