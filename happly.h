@@ -140,21 +140,21 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNext(std::ifstream& stream) = 0;
+  virtual void readNext(std::istream& stream) = 0;
 
   /**
    * @brief (binary reading) Copy the next value of this property from a stream of bits.
    *
    * @param stream Stream to read from.
    */
-  virtual void readNextBigEndian(std::ifstream& stream) = 0;
+  virtual void readNextBigEndian(std::istream& stream) = 0;
 
   /**
    * @brief (reading) Write a header entry for this property.
    *
    * @param outStream Stream to write to.
    */
-  virtual void writeHeader(std::ofstream& outStream) = 0;
+  virtual void writeHeader(std::ostream& outStream) = 0;
 
   /**
    * @brief (ASCII writing) write this property for some element to a stream in plaintext
@@ -162,7 +162,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) = 0;
+  virtual void writeDataASCII(std::ostream& outStream, size_t iElement) = 0;
 
   /**
    * @brief (binary writing) copy the bits of this property for some element to a stream
@@ -170,7 +170,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) = 0;
+  virtual void writeDataBinary(std::ostream& outStream, size_t iElement) = 0;
 
   /**
    * @brief (binary writing) copy the bits of this property for some element to a stream
@@ -178,7 +178,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinaryBigEndian(std::ofstream& outStream, size_t iElement) = 0;
+  virtual void writeDataBinaryBigEndian(std::ostream& outStream, size_t iElement) = 0;
 
   /**
    * @brief Number of element entries for this property
@@ -285,7 +285,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNext(std::ifstream& stream) override {
+  virtual void readNext(std::istream& stream) override {
     data.emplace_back();
     stream.read((char*)&data.back(), sizeof(T));
   }
@@ -295,7 +295,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNextBigEndian(std::ifstream& stream) override {
+  virtual void readNextBigEndian(std::istream& stream) override {
     data.emplace_back();
     stream.read((char*)&data.back(), sizeof(T));
     data.back() = swapEndian(data.back());
@@ -306,7 +306,7 @@ public:
    *
    * @param outStream Stream to write to.
    */
-  virtual void writeHeader(std::ofstream& outStream) override {
+  virtual void writeHeader(std::ostream& outStream) override {
     outStream << "property " << typeName<T>() << " " << name << "\n";
   }
 
@@ -316,7 +316,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
+  virtual void writeDataASCII(std::ostream& outStream, size_t iElement) override {
     outStream.precision(std::numeric_limits<T>::max_digits10);
     outStream << data[iElement];
   }
@@ -327,7 +327,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) override {
+  virtual void writeDataBinary(std::ostream& outStream, size_t iElement) override {
     outStream.write((char*)&data[iElement], sizeof(T));
   }
 
@@ -337,7 +337,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinaryBigEndian(std::ofstream& outStream, size_t iElement) override {
+  virtual void writeDataBinaryBigEndian(std::ostream& outStream, size_t iElement) override {
     auto value = swapEndian(data[iElement]);
     outStream.write((char*)&value, sizeof(T));
   }
@@ -366,11 +366,11 @@ public:
 // outstream doesn't do what we want with chars, these specializations supersede the general behavior to ensure chars
 // get written correctly.
 template <>
-inline void TypedProperty<uint8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+inline void TypedProperty<uint8_t>::writeDataASCII(std::ostream& outStream, size_t iElement) {
   outStream << (int)data[iElement];
 }
 template <>
-inline void TypedProperty<int8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+inline void TypedProperty<int8_t>::writeDataASCII(std::ostream& outStream, size_t iElement) {
   outStream << (int)data[iElement];
 }
 template <>
@@ -462,7 +462,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNext(std::ifstream& stream) override {
+  virtual void readNext(std::istream& stream) override {
 
     // Read the size of the list
     size_t count = 0;
@@ -479,7 +479,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNextBigEndian(std::ifstream& stream) override {
+  virtual void readNextBigEndian(std::istream& stream) override {
 
     // Read the size of the list
     size_t count = 0;
@@ -506,7 +506,7 @@ public:
    *
    * @param outStream Stream to write to.
    */
-  virtual void writeHeader(std::ofstream& outStream) override {
+  virtual void writeHeader(std::ostream& outStream) override {
     // NOTE: We ALWAYS use uchar as the list count output type
     outStream << "property list uchar " << typeName<T>() << " " << name << "\n";
   }
@@ -517,7 +517,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataASCII(std::ofstream& outStream, size_t iElement) override {
+  virtual void writeDataASCII(std::ostream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
 
     // Get the number of list elements as a uchar, and ensure the value fits
@@ -540,7 +540,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinary(std::ofstream& outStream, size_t iElement) override {
+  virtual void writeDataBinary(std::ostream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
 
     // Get the number of list elements as a uchar, and ensure the value fits
@@ -562,7 +562,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinaryBigEndian(std::ofstream& outStream, size_t iElement) override {
+  virtual void writeDataBinaryBigEndian(std::ostream& outStream, size_t iElement) override {
     std::vector<T>& elemList = data[iElement];
 
     // Get the number of list elements as a uchar, and ensure the value fits
@@ -608,7 +608,7 @@ public:
 // outstream doesn't do what we want with int8_ts, these specializations supersede the general behavior to ensure
 // int8_ts get written correctly.
 template <>
-inline void TypedListProperty<uint8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+inline void TypedListProperty<uint8_t>::writeDataASCII(std::ostream& outStream, size_t iElement) {
   std::vector<uint8_t>& elemList = data[iElement];
   outStream << elemList.size();
   outStream.precision(std::numeric_limits<uint8_t>::max_digits10);
@@ -617,7 +617,7 @@ inline void TypedListProperty<uint8_t>::writeDataASCII(std::ofstream& outStream,
   }
 }
 template <>
-inline void TypedListProperty<int8_t>::writeDataASCII(std::ofstream& outStream, size_t iElement) {
+inline void TypedListProperty<int8_t>::writeDataASCII(std::ostream& outStream, size_t iElement) {
   std::vector<int8_t>& elemList = data[iElement];
   outStream << elemList.size();
   outStream.precision(std::numeric_limits<int8_t>::max_digits10);
@@ -1015,7 +1015,7 @@ public:
    *
    * @param outStream The stream to use.
    */
-  void writeHeader(std::ofstream& outStream) {
+  void writeHeader(std::ostream& outStream) {
 
     outStream << "element " << name << " " << count << "\n";
 
@@ -1030,7 +1030,7 @@ public:
    *
    * @param outStream The stream to write to.
    */
-  void writeDataASCII(std::ofstream& outStream) {
+  void writeDataASCII(std::ostream& outStream) {
     // Question: what is the proper output for an element with no properties? Here, we write a blank line, so there is
     // one line per element no matter what.
     for (size_t iE = 0; iE < count; iE++) {
@@ -1051,7 +1051,7 @@ public:
    *
    * @param outStream The stream to write to.
    */
-  void writeDataBinary(std::ofstream& outStream) {
+  void writeDataBinary(std::ostream& outStream) {
     for (size_t iE = 0; iE < count; iE++) {
       for (size_t iP = 0; iP < properties.size(); iP++) {
         properties[iP]->writeDataBinary(outStream, iE);
@@ -1066,7 +1066,7 @@ public:
    *
    * @param outStream The stream to write to.
    */
-  void writeDataBinaryBigEndian(std::ofstream& outStream) {
+  void writeDataBinaryBigEndian(std::ostream& outStream) {
     for (size_t iE = 0; iE < count; iE++) {
       for (size_t iP = 0; iP < properties.size(); iP++) {
         properties[iP]->writeDataBinaryBigEndian(outStream, iE);
@@ -1224,27 +1224,30 @@ public:
       throw std::runtime_error("PLY parser: Could not open file " + filename);
     }
 
-
-    // == Process the header
-    parseHeader(inStream, verbose);
-
-
-    // === Parse data from a binary file
-    if (inputDataFormat == DataFormat::Binary) {
-      parseBinary(inStream, verbose);
-    }
-    // === Parse data from an binary file
-    else if (inputDataFormat == DataFormat::BinaryBigEndian) {
-      parseBinaryBigEndian(inStream, verbose);
-    }
-    // === Parse data from an ASCII file
-    else if (inputDataFormat == DataFormat::ASCII) {
-      parseASCII(inStream, verbose);
-    }
-
+    parsePLY(inStream, verbose);
 
     if (verbose) {
       cout << "  - Finished parsing file." << endl;
+    }
+  }
+
+  /**
+   * @brief Initialize a PLYData by reading from a stringstream. Throws if any failures occur.
+   *
+   * @param inStream The stringstream to read from.
+   * @param verbose If true, print useful info about the file to stdout
+   */
+  PLYData(std::istream& inStream, bool verbose = false) {
+
+    using std::cout;
+    using std::endl;
+
+    if (verbose) cout << "PLY parser: Reading ply file from stream" << endl;
+
+    parsePLY(inStream, verbose);
+
+    if (verbose) {
+      cout << "  - Finished parsing stream." << endl;
     }
   }
 
@@ -1289,24 +1292,21 @@ public:
       throw std::runtime_error("Ply writer: Could not open output file " + filename + " for writing");
     }
 
-    writeHeader(outStream);
+    writePLY(outStream);
+  }
 
-    // Write all elements
-    for (Element& e : elements) {
-      if (outputDataFormat == DataFormat::Binary) {
-        if (!isLittleEndian()) {
-          throw std::runtime_error("binary writing assumes little endian system");
-        }
-        e.writeDataBinary(outStream);
-      } else if (outputDataFormat == DataFormat::BinaryBigEndian) {
-        if (!isLittleEndian()) {
-          throw std::runtime_error("binary writing assumes little endian system");
-        }
-        e.writeDataBinaryBigEndian(outStream);
-      } else if (outputDataFormat == DataFormat::ASCII) {
-        e.writeDataASCII(outStream);
-      }
-    }
+  /**
+   * @brief Write this data to an output stream
+   *
+   * @param outStream The output stream to write to.
+   * @param format The format to use (binary or ascii?)
+   */
+  void write(std::ostream& outStream, DataFormat format = DataFormat::ASCII) {
+    outputDataFormat = format;
+
+    validate();
+
+    writePLY(outStream);
   }
 
   /**
@@ -1581,12 +1581,38 @@ private:
   // === Reading ===
 
   /**
+   * @brief Parse a PLY file from an input stream
+   *
+   * @param inStream
+   * @param verbose
+   */
+  void parsePLY(std::istream& inStream, bool verbose) {
+
+    // == Process the header
+    parseHeader(inStream, verbose);
+
+
+    // === Parse data from a binary file
+    if (inputDataFormat == DataFormat::Binary) {
+      parseBinary(inStream, verbose);
+    }
+    // === Parse data from an binary file
+    else if (inputDataFormat == DataFormat::BinaryBigEndian) {
+      parseBinaryBigEndian(inStream, verbose);
+    }
+    // === Parse data from an ASCII file
+    else if (inputDataFormat == DataFormat::ASCII) {
+      parseASCII(inStream, verbose);
+    }
+  }
+
+  /**
    * @brief Read the header for a file
    *
    * @param inStream
    * @param verbose
    */
-  void parseHeader(std::ifstream& inStream, bool verbose) {
+  void parseHeader(std::istream& inStream, bool verbose) {
 
     using std::cout;
     using std::endl;
@@ -1714,7 +1740,7 @@ private:
    * @param inStream
    * @param verbose
    */
-  void parseASCII(std::ifstream& inStream, bool verbose) {
+  void parseASCII(std::istream& inStream, bool verbose) {
 
     using std::string;
     using std::vector;
@@ -1749,7 +1775,7 @@ private:
    * @param inStream
    * @param verbose
    */
-  void parseBinary(std::ifstream& inStream, bool verbose) {
+  void parseBinary(std::istream& inStream, bool verbose) {
 
     if (!isLittleEndian()) {
       throw std::runtime_error("binary reading assumes little endian system");
@@ -1782,7 +1808,7 @@ private:
    * @param inStream
    * @param verbose
    */
-  void parseBinaryBigEndian(std::ifstream& inStream, bool verbose) {
+  void parseBinaryBigEndian(std::istream& inStream, bool verbose) {
 
     if (!isLittleEndian()) {
       throw std::runtime_error("binary reading assumes little endian system");
@@ -1813,11 +1839,40 @@ private:
 
 
   /**
+   * @brief write a PLY file to an output stream
+   *
+   * @param outStream
+   */
+  void writePLY(std::ostream& outStream) {
+
+    writeHeader(outStream);
+
+    // Write all elements
+    for (Element& e : elements) {
+      if (outputDataFormat == DataFormat::Binary) {
+        if (!isLittleEndian()) {
+          throw std::runtime_error("binary writing assumes little endian system");
+        }
+        e.writeDataBinary(outStream);
+      } else if (outputDataFormat == DataFormat::BinaryBigEndian) {
+        if (!isLittleEndian()) {
+          throw std::runtime_error("binary writing assumes little endian system");
+        }
+        e.writeDataBinaryBigEndian(outStream);
+      } else if (outputDataFormat == DataFormat::ASCII) {
+        e.writeDataASCII(outStream);
+      }
+    }
+  }
+
+
+
+  /**
    * @brief Write out a header for a file
    *
    * @param outStream
    */
-  void writeHeader(std::ofstream& outStream) {
+  void writeHeader(std::ostream& outStream) {
 
     // Magic line
     outStream << "ply\n";
