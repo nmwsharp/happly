@@ -76,14 +76,12 @@ template<> inline std::string typeName<int32_t>()           { return "int";     
 template<> inline std::string typeName<uint32_t>()          { return "uint";    }
 template<> inline std::string typeName<float>()             { return "float";   }
 template<> inline std::string typeName<double>()            { return "double";  }
-// clang-format on
 
 // Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
 namespace {
 
 // A pointer for the equivalent/smaller equivalent of a type (eg. when a double is requested a float works too, etc)
 // long int is intentionally absent to avoid platform confusion
-// clang-format off
 template <class T> struct TypeChain                 { bool hasChildType = false;   typedef T            type; };
 template <> struct TypeChain<int64_t>               { bool hasChildType = true;    typedef int32_t      type; };
 template <> struct TypeChain<int32_t>               { bool hasChildType = true;    typedef int16_t      type; };
@@ -92,13 +90,18 @@ template <> struct TypeChain<uint64_t>              { bool hasChildType = true; 
 template <> struct TypeChain<uint32_t>              { bool hasChildType = true;    typedef uint16_t     type; };
 template <> struct TypeChain<uint16_t>              { bool hasChildType = true;    typedef uint8_t      type; };
 template <> struct TypeChain<double>                { bool hasChildType = true;    typedef float        type; };
-// clang-format on
 
-// clang-format off
 template <class T> struct CanonicalName                     { typedef T         type; };
 template <> struct CanonicalName<char>                      { typedef int8_t    type; };
 template <> struct CanonicalName<unsigned char>             { typedef uint8_t   type; };
 template <> struct CanonicalName<size_t>                    { typedef std::conditional<std::is_same<std::make_signed<size_t>::type, int>::value, uint32_t, uint64_t>::type type; };
+
+// Used to change behavior of >> for 8bit ints, which does not do what we want.
+template <class T> struct SerializeType                 { typedef T         type; };
+template <> struct SerializeType<uint8_t>               { typedef int32_t   type; };
+template <> struct SerializeType< int8_t>               { typedef int32_t   type; };
+
+
 // clang-format on
 } // namespace
 
@@ -224,6 +227,31 @@ T swapEndian(T val) {
   }
   return val;
 }
+
+
+// Unpack flattened list from the convention used in TypedListProperty
+template <typename T>
+std::vector<std::vector<T>> unflattenList(const std::vector<T>& flatList, const std::vector<size_t> flatListStarts) {
+  size_t outerCount = flatListStarts.size() - 1;
+
+  // Put the output here
+  std::vector<std::vector<T>> outLists(outerCount);
+
+  if(outerCount == 0) {
+    return outLists; // quick out for empty
+  }
+
+  // Copy each sublist
+  for (size_t iOuter = 0; iOuter < outerCount; iOuter++) {
+    size_t iFlatStart = flatListStarts[iOuter];
+    size_t iFlatEnd = flatListStarts[iOuter + 1];
+    outLists[iOuter].insert(outLists[iOuter].begin(), flatList.begin() + iFlatStart, flatList.begin() + iFlatEnd);
+  }
+
+  return outLists;
+}
+
+
 }; // namespace
 
 
@@ -276,7 +304,9 @@ public:
   virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) override {
     data.emplace_back();
     std::istringstream iss(tokens[currEntry]);
-    iss >> data.back();
+    typename SerializeType<T>::type tmp; // usually the same type as T
+    iss >> tmp;
+    data.back() = tmp;
     currEntry++;
   };
 
@@ -318,7 +348,7 @@ public:
    */
   virtual void writeDataASCII(std::ostream& outStream, size_t iElement) override {
     outStream.precision(std::numeric_limits<T>::max_digits10);
-    outStream << data[iElement];
+    outStream << static_cast<typename SerializeType<T>::type>(data[iElement]); // case is usually a no-op
   }
 
   /**
@@ -363,33 +393,6 @@ public:
   std::vector<T> data;
 };
 
-// outstream doesn't do what we want with chars, these specializations supersede the general behavior to ensure chars
-// get written correctly.
-template <>
-inline void TypedProperty<uint8_t>::writeDataASCII(std::ostream& outStream, size_t iElement) {
-  outStream << (int)data[iElement];
-}
-template <>
-inline void TypedProperty<int8_t>::writeDataASCII(std::ostream& outStream, size_t iElement) {
-  outStream << (int)data[iElement];
-}
-template <>
-inline void TypedProperty<uint8_t>::parseNext(const std::vector<std::string>& tokens, size_t& currEntry) {
-  std::istringstream iss(tokens[currEntry]);
-  int intVal;
-  iss >> intVal;
-  data.push_back((uint8_t)intVal);
-  currEntry++;
-}
-template <>
-inline void TypedProperty<int8_t>::parseNext(const std::vector<std::string>& tokens, size_t& currEntry) {
-  std::istringstream iss(tokens[currEntry]);
-  int intVal;
-  iss >> intVal;
-  data.push_back((int8_t)intVal);
-  currEntry++;
-}
-
 
 /**
  * @brief A property which is a list of value (eg, 3 doubles). Note that lists are always variable length per-element.
@@ -407,6 +410,8 @@ public:
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
+
+    flattenedIndexStart.push_back(0);
   };
 
   /**
@@ -415,9 +420,18 @@ public:
    * @param name_
    * @param data_
    */
-  TypedListProperty(const std::string& name_, const std::vector<std::vector<T>>& data_) : Property(name_), data(data_) {
+  TypedListProperty(const std::string& name_, const std::vector<std::vector<T>>& data_) : Property(name_) {
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
+    }
+
+    // Populate list with data
+    flattenedIndexStart.push_back(0);
+    for (const std::vector<T>& vec : data_) {
+      for (const T& val : vec) {
+        flattenedData.emplace_back(val);
+      }
+      flattenedIndexStart.push_back(flattenedData.size());
     }
   };
 
@@ -429,10 +443,8 @@ public:
    * @param capacity Expected number of elements.
    */
   virtual void reserve(size_t capacity) override {
-    data.reserve(capacity);
-    for (size_t i = 0; i < data.size(); i++) {
-      data[i].reserve(3); // optimize for triangle meshes
-    }
+    flattenedData.reserve(3 * capacity); // optimize for triangle meshes
+    flattenedIndexStart.reserve(capacity + 1);
   }
 
   /**
@@ -448,13 +460,17 @@ public:
     iss >> count;
     currEntry++;
 
-    data.emplace_back();
-    data.back().resize(count);
-    for (size_t iCount = 0; iCount < count; iCount++) {
+    size_t currSize = flattenedData.size();
+    size_t afterSize = currSize + count;
+    flattenedData.resize(afterSize);
+    for (size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
       std::istringstream iss(tokens[currEntry]);
-      iss >> data.back()[iCount];
+      typename SerializeType<T>::type tmp; // usually the same type as T
+      iss >> tmp;
+      flattenedData[iFlat] = tmp;
       currEntry++;
     }
+    flattenedIndexStart.emplace_back(afterSize);
   }
 
   /**
@@ -469,9 +485,11 @@ public:
     stream.read(((char*)&count), listCountBytes);
 
     // Read list elements
-    data.emplace_back();
-    data.back().resize(count);
-    stream.read((char*)&data.back().front(), count * sizeof(T));
+    size_t currSize = flattenedData.size();
+    size_t afterSize = currSize + count;
+    flattenedData.resize(afterSize);
+    stream.read((char*)&flattenedData[currSize], count * sizeof(T));
+    flattenedIndexStart.emplace_back(afterSize);
   }
 
   /**
@@ -493,11 +511,15 @@ public:
     }
 
     // Read list elements
-    data.emplace_back();
-    data.back().resize(count);
-    stream.read((char*)&data.back().front(), count * sizeof(T));
-    for (size_t i = 0; i < count; i++) {
-      data.back()[i] = swapEndian(data.back()[i]);
+    size_t currSize = flattenedData.size();
+    size_t afterSize = currSize + count;
+    flattenedData.resize(afterSize);
+    stream.read((char*)&flattenedData[currSize], count * sizeof(T));
+    flattenedIndexStart.emplace_back(afterSize);
+
+    // Swap endian order of list elements
+    for (size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
+      flattenedData[iFlat] = swapEndian(flattenedData[iFlat]);
     }
   }
 
@@ -518,19 +540,21 @@ public:
    * @param iElement index of the element to write.
    */
   virtual void writeDataASCII(std::ostream& outStream, size_t iElement) override {
-    std::vector<T>& elemList = data[iElement];
+    size_t dataStart = flattenedIndexStart[iElement];
+    size_t dataEnd = flattenedIndexStart[iElement + 1];
 
     // Get the number of list elements as a uchar, and ensure the value fits
-    uint8_t count = elemList.size();
-    if (count != elemList.size()) {
+    size_t dataCount = dataEnd - dataStart;
+    if (dataCount > std::numeric_limits<uint8_t>::max()) {
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
     }
+    uint8_t count = static_cast<uint8_t>(dataCount);
 
-    outStream << elemList.size();
+    outStream << dataCount;
     outStream.precision(std::numeric_limits<T>::max_digits10);
-    for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
-      outStream << " " << elemList[iEntry];
+    for (size_t iFlat = dataStart; iFlat < dataEnd; iFlat++) {
+      outStream << " " << static_cast<typename SerializeType<T>::type>(flattenedData[iFlat]); // cast is usually a no-op
     }
   }
 
@@ -541,19 +565,19 @@ public:
    * @param iElement index of the element to write.
    */
   virtual void writeDataBinary(std::ostream& outStream, size_t iElement) override {
-    std::vector<T>& elemList = data[iElement];
+    size_t dataStart = flattenedIndexStart[iElement];
+    size_t dataEnd = flattenedIndexStart[iElement + 1];
 
     // Get the number of list elements as a uchar, and ensure the value fits
-    uint8_t count = elemList.size();
-    if (count != elemList.size()) {
+    size_t dataCount = dataEnd - dataStart;
+    if (dataCount > std::numeric_limits<uint8_t>::max()) {
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
     }
+    uint8_t count = static_cast<uint8_t>(dataCount);
 
     outStream.write((char*)&count, sizeof(uint8_t));
-    for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
-      outStream.write((char*)&elemList[iEntry], sizeof(T));
-    }
+    outStream.write((char*)&flattenedData[dataStart], count * sizeof(T));
   }
 
   /**
@@ -563,18 +587,20 @@ public:
    * @param iElement index of the element to write.
    */
   virtual void writeDataBinaryBigEndian(std::ostream& outStream, size_t iElement) override {
-    std::vector<T>& elemList = data[iElement];
+    size_t dataStart = flattenedIndexStart[iElement];
+    size_t dataEnd = flattenedIndexStart[iElement + 1];
 
     // Get the number of list elements as a uchar, and ensure the value fits
-    uint8_t count = elemList.size();
-    if (count != elemList.size()) {
+    size_t dataCount = dataEnd - dataStart;
+    if (dataCount > std::numeric_limits<uint8_t>::max()) {
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
     }
+    uint8_t count = static_cast<uint8_t>(dataCount);
 
     outStream.write((char*)&count, sizeof(uint8_t));
-    for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
-      auto value = swapEndian(elemList[iEntry]);
+    for (size_t iFlat = dataStart; iFlat < dataEnd; iFlat++) {
+      T value = swapEndian(flattenedData[iFlat]);
       outStream.write((char*)&value, sizeof(T));
     }
   }
@@ -584,7 +610,7 @@ public:
    *
    * @return
    */
-  virtual size_t size() override { return data.size(); }
+  virtual size_t size() override { return flattenedIndexStart.size() - 1; }
 
 
   /**
@@ -595,9 +621,16 @@ public:
   virtual std::string propertyTypeName() override { return typeName<T>(); }
 
   /**
-   * @brief The actualy data lists for the property
+   * @brief The (flattened) data for the property, as formed by concatenating all of the individual element lists
+   * together.
    */
-  std::vector<std::vector<T>> data;
+  std::vector<T> flattenedData;
+
+  /**
+   * @brief Indices in to flattenedData. The i'th element gives the index in to flattenedData where the element's data
+   * begins. A final entry is included which is the length of flattenedData. Size is N_elem + 1.
+   */
+  std::vector<size_t> flattenedIndexStart;
 
   /**
    * @brief The number of bytes used to store the count for lists of data.
@@ -605,62 +638,6 @@ public:
   int listCountBytes = -1;
 };
 
-// outstream doesn't do what we want with int8_ts, these specializations supersede the general behavior to ensure
-// int8_ts get written correctly.
-template <>
-inline void TypedListProperty<uint8_t>::writeDataASCII(std::ostream& outStream, size_t iElement) {
-  std::vector<uint8_t>& elemList = data[iElement];
-  outStream << elemList.size();
-  outStream.precision(std::numeric_limits<uint8_t>::max_digits10);
-  for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
-    outStream << " " << (int)elemList[iEntry];
-  }
-}
-template <>
-inline void TypedListProperty<int8_t>::writeDataASCII(std::ostream& outStream, size_t iElement) {
-  std::vector<int8_t>& elemList = data[iElement];
-  outStream << elemList.size();
-  outStream.precision(std::numeric_limits<int8_t>::max_digits10);
-  for (size_t iEntry = 0; iEntry < elemList.size(); iEntry++) {
-    outStream << " " << (int)elemList[iEntry];
-  }
-}
-template <>
-inline void TypedListProperty<uint8_t>::parseNext(const std::vector<std::string>& tokens, size_t& currEntry) {
-
-  std::istringstream iss(tokens[currEntry]);
-  size_t count;
-  iss >> count;
-  currEntry++;
-
-  std::vector<uint8_t> thisVec;
-  for (size_t iCount = 0; iCount < count; iCount++) {
-    std::istringstream iss(tokens[currEntry]);
-    int intVal;
-    iss >> intVal;
-    thisVec.push_back((uint8_t)intVal);
-    currEntry++;
-  }
-  data.push_back(thisVec);
-}
-template <>
-inline void TypedListProperty<int8_t>::parseNext(const std::vector<std::string>& tokens, size_t& currEntry) {
-
-  std::istringstream iss(tokens[currEntry]);
-  size_t count;
-  iss >> count;
-  currEntry++;
-
-  std::vector<int8_t> thisVec;
-  for (size_t iCount = 0; iCount < count; iCount++) {
-    std::istringstream iss(tokens[currEntry]);
-    int intVal;
-    iss >> intVal;
-    thisVec.push_back((int8_t)intVal);
-    currEntry++;
-  }
-  data.push_back(thisVec);
-}
 
 /**
  * @brief Helper function to construct a new property of the appropriate type.
@@ -1095,6 +1072,7 @@ public:
       if (castedProp) {
         // Succeeded, return a buffer of the data (copy while converting type)
         std::vector<D> castedVec;
+        castedVec.reserve(castedProp->data.size());
         for (Tcan& v : castedProp->data) {
           castedVec.push_back(static_cast<D>(v));
         }
@@ -1130,15 +1108,16 @@ public:
     TypedListProperty<Tcan>* castedProp = dynamic_cast<TypedListProperty<Tcan>*>(prop);
     if (castedProp) {
       // Succeeded, return a buffer of the data (copy while converting type)
-      std::vector<std::vector<D>> castedListVec;
-      for (std::vector<Tcan>& l : castedProp->data) {
-        std::vector<D> newL;
-        for (Tcan& v : l) {
-          newL.push_back(static_cast<D>(v));
-        }
-        castedListVec.push_back(newL);
+
+      // Convert to flat buffer of new type
+      std::vector<D> castedFlatVec;
+      castedFlatVec.reserve(castedProp->flattenedData.size());
+      for (Tcan& v : castedProp->flattenedData) {
+        castedFlatVec.push_back(static_cast<D>(v));
       }
-      return castedListVec;
+
+      // Unflatten and return
+      return unflattenList(castedFlatVec, castedProp->flattenedIndexStart);
     }
 
     TypeChain<Tcan> chainType;
@@ -1864,7 +1843,6 @@ private:
       }
     }
   }
-
 
 
   /**
