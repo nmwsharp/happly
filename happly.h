@@ -101,6 +101,14 @@ template <class T> struct SerializeType                 { typedef T         type
 template <> struct SerializeType<uint8_t>               { typedef int32_t   type; };
 template <> struct SerializeType< int8_t>               { typedef int32_t   type; };
 
+// Give address only if types are same (used below when conditionally copying data)
+// last int/char arg is to resolve ambiguous overloads, just always pass 0 and the int version will be preferred
+template <typename S, typename T>
+S* addressIfSame(T& t, char) {
+  throw std::runtime_error("tried to take address for types that are not same");
+  return nullptr;}
+template <typename S>
+S* addressIfSame(S& t, int) {return &t;}
 
 // clang-format on
 } // namespace
@@ -237,7 +245,7 @@ std::vector<std::vector<T>> unflattenList(const std::vector<T>& flatList, const 
   // Put the output here
   std::vector<std::vector<T>> outLists(outerCount);
 
-  if(outerCount == 0) {
+  if (outerCount == 0) {
     return outLists; // quick out for empty
   }
 
@@ -1110,14 +1118,23 @@ public:
       // Succeeded, return a buffer of the data (copy while converting type)
 
       // Convert to flat buffer of new type
-      std::vector<D> castedFlatVec;
-      castedFlatVec.reserve(castedProp->flattenedData.size());
-      for (Tcan& v : castedProp->flattenedData) {
-        castedFlatVec.push_back(static_cast<D>(v));
+      std::vector<D>* castedFlatVec = nullptr;
+      std::vector<D> castedFlatVecCopy; // we _might_ make a copy here, depending on is_same below
+
+      if (std::is_same<std::vector<D>, std::vector<Tcan>>::value) {
+        // just use the array we already have
+        castedFlatVec = addressIfSame<std::vector<D>>(castedProp->flattenedData, 0 /* dummy arg to disambiguate */);
+      } else {
+        // make a copy
+        castedFlatVecCopy.reserve(castedProp->flattenedData.size());
+        for (Tcan& v : castedProp->flattenedData) {
+          castedFlatVecCopy.push_back(static_cast<D>(v));
+        }
+        castedFlatVec = &castedFlatVecCopy;
       }
 
       // Unflatten and return
-      return unflattenList(castedFlatVec, castedProp->flattenedIndexStart);
+      return unflattenList(*castedFlatVec, castedProp->flattenedIndexStart);
     }
 
     TypeChain<Tcan> chainType;
