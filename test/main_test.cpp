@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <string>
+#include <chrono>
+#include <random>
 
 #include "gtest/gtest.h"
 
@@ -1296,6 +1298,51 @@ TEST(MeshTest, ReadWriteBinaryMeshStream) {
 
   DoubleArrayVecEq(vPos, vPos2);
   EXPECT_EQ(fInd, fInd2);
+}
+
+
+TEST(PerfTest, WriteReadFloatList) {
+
+  // Parameters
+  size_t innerSizeMax = 10;
+  size_t N = 100000;
+
+  // Random number makers
+  std::mt19937 gen(777);
+  std::uniform_int_distribution<int> distInnerSize(1, innerSizeMax);
+  std::uniform_int_distribution<int> distValues(0, 1000000);
+
+  // Generate a long list of junk data
+  std::vector<std::vector<int>> testVals;
+  for (size_t i = 0; i < N; i++) {
+    size_t innerCount = distInnerSize(gen);
+    std::vector<int> innerVals;
+    for (size_t j = 0; j < innerCount; j++) {
+      int val = distValues(gen);
+      innerVals.push_back(val);
+    }
+    testVals.push_back(innerVals);
+  }
+
+  // Start timing
+  auto tStart = std::chrono::steady_clock::now();
+
+  // Create a ply file
+  happly::PLYData plyOut;
+  plyOut.addElement("testElem", N);
+  plyOut.getElement("testElem").addListProperty<int>("testVals", testVals);
+
+  // Write it to a stream
+  std::stringstream ioBuffer;
+  plyOut.write(ioBuffer, happly::DataFormat::Binary);
+
+  // = Read from stream
+  // (note that this DOES NOT actually access the property, but simply opening the stream parses everything)
+  happly::PLYData plyIn(ioBuffer, false);
+
+  // Finish timing
+  auto tEnd = std::chrono::steady_clock::now();
+  std::cout << "  time elapsed = " << std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count() << "us" << std::endl;
 }
 
 
