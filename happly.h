@@ -39,6 +39,7 @@ SOFTWARE.
 
   Significant changes to the file recorded here.
 
+  - Version 4 (Sep 11, 2019)      Change internal list format to be flat. Other small perf fixes and cleanup.
   - Version 3 (Aug 1, 2019)       Add support for big endian and obj_info
   - Version 2 (July 20, 2019)     Catch exceptions by const reference.
   - Version 1 (undated)           Initial version. Unnamed changes before version numbering.
