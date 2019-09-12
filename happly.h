@@ -945,19 +945,8 @@ public:
         typedef typename std::conditional<std::is_signed<Tcan>::value, typename std::make_unsigned<Tcan>::type,
                                           typename std::make_signed<Tcan>::type>::type OppsignType;
 
-        std::vector<std::vector<OppsignType>> oppSignedResult = getListProperty<OppsignType>(propertyName);
+        return getDataFromListPropertyRecursive<T, OppsignType>(prop.get());
 
-        // Very explicitly convert while copying
-        std::vector<std::vector<T>> origSignResult;
-        for (std::vector<OppsignType>& l : oppSignedResult) {
-          std::vector<T> newL;
-          for (OppsignType& v : l) {
-            newL.push_back(static_cast<T>(v));
-          }
-          origSignResult.push_back(newL);
-        }
-
-        return origSignResult;
       } catch (const std::runtime_error& new_e) {
         throw orig_e;
       }
