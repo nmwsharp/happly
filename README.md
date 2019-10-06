@@ -132,6 +132,8 @@ Generally speaking, hapPLY uses C++ exceptions to communicate errors-- most of t
   
 - `bool hasElement(std::string target)` Check if an element type is contained in the object.
 
+- `std::vector<std::string> getElementNames()` List of all element names.
+
 - `std::vector<T> Element::getProperty(std::string propertyName)` Get a vector of property data for an element. Will automatically promote types if possible, eg `getProperty<int>("my_prop")` will succeed even if the object contains "my_prop" with type `short`.
 
 - `std::vector<std::vector<T>> Element::getListProperty(std::string propertyName)` Get a vector of list property data for an element. Supports type promotion just like `getProperty()`.

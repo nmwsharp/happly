@@ -1372,6 +1372,20 @@ public:
 
 
   /**
+   * @brief A list of the names of all elements
+   *
+   * @return Element names
+   */
+  std::vector<std::string> getElementNames() {
+    std::vector<std::string> names;
+    for (Element& e : elements) {
+      names.push_back(e.name);
+    }
+    return names;
+  }
+
+
+  /**
    * @brief Add a new element type to the object
    *
    * @param name The name of the new element type ("vertices").
