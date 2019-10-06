@@ -821,6 +821,19 @@ public:
   }
 
   /**
+   * @brief A list of the names of all properties
+   *
+   * @return Property names
+   */
+  std::vector<std::string> getPropertyNames() {
+    std::vector<std::string> names;
+    for (std::unique_ptr<Property>& p : properties) {
+      names.push_back(p->name);
+    }
+    return names;
+  }
+
+  /**
    * @brief Low-level method to get a pointer to a property. Users probably don't need to call this.
    *
    * @param target The name of the property to get.
@@ -957,6 +970,30 @@ public:
 
     // Get a copy of the data with auto-promoting type magic
     return getDataFromListPropertyRecursive<T, T>(prop.get());
+  }
+  
+  /**
+   * @brief Get a vector of a data from a property for this element. Unlike getProperty(), only returns if the ply
+   * record contains a type that matches T exactly. Throws if * requested data is unavailable.
+   *
+   * @tparam T The type of data requested
+   * @param propertyName The name of the property to get.
+   *
+   * @return The data.
+   */
+  template <class T>
+  std::vector<std::vector<T>> getListPropertyType(const std::string& propertyName) {
+
+    // Find the property
+    std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
+    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop);
+    if (castedProp) {
+      return unflattenList(castedProp->flattenedData, castedProp->flattenedIndexStart);
+    }
+
+    // No match, failure
+    throw std::runtime_error("PLY parser: list property " + prop->name + " is not of type " + typeName<T>() +
+                             ". Has type " + prop->propertyTypeName());
   }
 
 
