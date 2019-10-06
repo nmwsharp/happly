@@ -799,6 +799,28 @@ public:
   }
 
   /**
+   * @brief Check if a property exists with the requested type.
+   *
+   * @tparam T The type of the property
+   * @param target The name of the property to get.
+   *
+   * @return Whether the target property exists.
+   */
+  template <class T>
+  bool hasPropertyType(const std::string& target) {
+    for (std::unique_ptr<Property>& prop : properties) {
+      if (prop->name == target) {
+        TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
+        if (castedProp) {
+          return true;
+        }
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /**
    * @brief Low-level method to get a pointer to a property. Users probably don't need to call this.
    *
    * @param target The name of the property to get.
@@ -892,6 +914,30 @@ public:
 
     // Get a copy of the data with auto-promoting type magic
     return getDataFromPropertyRecursive<T, T>(prop.get());
+  }
+
+  /**
+   * @brief Get a vector of a data from a property for this element. Unlike getProperty(), only returns if the ply
+   * record contains a type that matches T exactly. Throws if * requested data is unavailable.
+   *
+   * @tparam T The type of data requested
+   * @param propertyName The name of the property to get.
+   *
+   * @return The data.
+   */
+  template <class T>
+  std::vector<T> getPropertyType(const std::string& propertyName) {
+
+    // Find the property
+    std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
+    TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop);
+    if (castedProp) {
+      return castedProp->data;
+    }
+
+    // No match, failure
+    throw std::runtime_error("PLY parser: property " + prop->name + " is not of type type " + typeName<T>() +
+                             ". Has type " + prop->propertyTypeName());
   }
 
   /**
