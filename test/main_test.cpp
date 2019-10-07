@@ -1,9 +1,9 @@
 #include "happly.h"
 
-#include <iostream>
-#include <string>
 #include <chrono>
+#include <iostream>
 #include <random>
+#include <string>
 
 #include "gtest/gtest.h"
 
@@ -1058,7 +1058,7 @@ TEST(TypePromotionTest, PromoteUnsigned) {
   EXPECT_EQ(dataC, ply.getElement("test_elem").getProperty<unsigned char>("data"));
   EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<unsigned short>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<unsigned int>("data"));
-  //EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<unsigned long long int>("data"));
+  // EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<unsigned long long int>("data"));
   EXPECT_EQ(dataSZ, ply.getElement("test_elem").getProperty<size_t>("data"));
 }
 
@@ -1081,7 +1081,7 @@ TEST(TypePromotionTest, PromoteSigned) {
   EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<short>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<int32_t>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<int>("data"));
-  //EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<long long int>("data"));
+  // EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<long long int>("data"));
   EXPECT_EQ(data64, ply.getElement("test_elem").getProperty<int64_t>("data"));
 }
 
@@ -1128,7 +1128,7 @@ TEST(TypePromotionTest, FaceIndSign) {
 
   std::vector<std::vector<int>> faceIndGetI = ply.getFaceIndices<int>();
   EXPECT_EQ(faceIndsI, faceIndGetI);
-  
+
   std::vector<std::vector<unsigned int>> faceIndGetU = ply.getFaceIndices<unsigned int>();
   EXPECT_NE(faceIndsU, faceIndGetU);
 }
@@ -1236,7 +1236,7 @@ TEST(MeshTest, ReadWriteBinarySwapMesh) {
 TEST(MeshTest, ReadWriteASCIIMeshStream) {
 
   // = Read the PLY from an input stream
-  std::ifstream file ("../sampledata/platonic_shelf_ascii.ply");
+  std::ifstream file("../sampledata/platonic_shelf_ascii.ply");
   happly::PLYData plyIn(file, false);
   plyIn.validate();
   file.close();
@@ -1270,7 +1270,7 @@ TEST(MeshTest, ReadWriteASCIIMeshStream) {
 TEST(MeshTest, ReadWriteBinaryMeshStream) {
 
   // = Read in an interesting mesh file
-  std::ifstream file ("../sampledata/platonic_shelf_ascii.ply");
+  std::ifstream file("../sampledata/platonic_shelf_ascii.ply");
   happly::PLYData plyIn(file, false);
   plyIn.validate();
   file.close();
@@ -1342,9 +1342,27 @@ TEST(PerfTest, WriteReadFloatList) {
 
   // Finish timing
   auto tEnd = std::chrono::steady_clock::now();
-  std::cout << "  time elapsed = " << std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count() << "us" << std::endl;
+  std::cout << "  time elapsed = " << std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()
+            << "us" << std::endl;
 }
 
+/*
+TEST(PerfTest, ReadCustomFile) {
+
+
+  // Start timing
+  auto tStart = std::chrono::steady_clock::now();
+
+  // = Read from stream
+  // (note that this DOES NOT actually access the property, but simply opening the stream parses everything)
+  happly::PLYData plyIn("lucy.ply", false);
+
+  // Finish timing
+  auto tEnd = std::chrono::steady_clock::now();
+  std::cout << "  time elapsed = " << std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()
+            << "us" << std::endl;
+}
+*/
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
