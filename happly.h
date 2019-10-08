@@ -520,6 +520,15 @@ public:
    */
   TypedListProperty(const std::string& name_, const std::vector<std::vector<T>>& data_);
 
+  /**
+   * @brief Create a new property and initialize with block data
+   *
+   * @param name_
+   * @param flattenedData_
+   * @param ragged size
+   */
+  TypedListProperty(const std::string& name_, const std::vector<T>& flattenedData_, size_t blockSize);
+
   virtual ~TypedListProperty();
 
 
@@ -708,7 +717,14 @@ public:
   std::vector<std::unique_ptr<Property>> properties;
 
   /**
-   * @brief Check if a property exists.
+   * @brief Get the number of entries for this element.
+   *
+   * @return The number of entries.
+   */
+  size_t size() const;
+
+  /**
+   * @brief Check if a property exists. DOES NOT distingish between list and ordinary properties.
    *
    * @param target The name of the property to get.
    *
@@ -717,7 +733,8 @@ public:
   bool hasProperty(const std::string& target);
 
   /**
-   * @brief Check if a property exists with the requested type.
+   * @brief Check if a property exists with the requested type. Unlike hasProperty(), only looks for an ordinary scalar
+   * property.
    *
    * @tparam T The type of the property
    * @param target The name of the property to get.
@@ -726,6 +743,17 @@ public:
    */
   template <class T>
   bool hasPropertyType(const std::string& target);
+
+  /**
+   * @brief Check if a LIST property exists with the requested type.
+   *
+   * @tparam T The type of the property
+   * @param target The name of the property to get.
+   *
+   * @return Whether the target property exists.
+   */
+  template <class T>
+  bool hasListPropertyType(const std::string& target);
 
   /**
    * @brief A list of the names of all properties
@@ -762,6 +790,16 @@ public:
    */
   template <class T>
   void addListProperty(const std::string& propertyName, const std::vector<std::vector<T>>& data);
+
+  /**
+   * @brief Add a new list property for this element type.
+   *
+   * @tparam T The type of the property (eg, "double" for a list of doubles)
+   * @param propertyName The name of the property
+   * @param data The data for the property. Outer vector must have the same length as the number of elements.
+   */
+  template <class T>
+  void addBlockListProperty(const std::string& propertyName, const std::vector<T>& data, size_t blockLen);
 
   /**
    * @brief Get a vector of a data from a property for this element. Automatically promotes to larger types. Throws if
@@ -811,7 +849,6 @@ public:
   template <class T>
   std::vector<std::vector<T>> getListPropertyType(const std::string& propertyName);
 
-
   /**
    * @brief Get a vector of lists of data from a property for this element. Automatically promotes to larger types.
    * Unlike getListProperty(), this method will additionally convert between types of different sign (eg, requesting and
@@ -825,6 +862,32 @@ public:
    */
   template <class T>
   std::vector<std::vector<T>> getListPropertyAnySign(const std::string& propertyName);
+
+  /**
+   * @brief Get a raw pointer in to the underlying data array for a property. Only returns if the ply
+   * record contains a type that matches T exactly. Throws if the requested data is unavailable.
+   *
+   * @tparam T The type of data requested
+   * @param propertyName The name of the property to get.
+   *
+   * @return A pointer to the data. Can be dereferenced in to an array of length elem.size().
+   */
+  template <class T>
+  T* getPropertyRaw(const std::string& propertyName);
+
+  /**
+   * @brief Get a raw pointer in to the underlying data array for a list property.
+   * Only valid if the property is a _block_ property, aka all sublists have the same length.
+   * Only returns if the ply record contains a type that matches T exactly. Throws if the requested data is unavailable.
+   *
+   * @tparam T The type of data requested
+   * @param propertyName The name of the property to get.
+   *
+   * @return A pointer to the data and the sublist length. Can be dereferenced in to an array of length elem.size() *
+   * sublist_len.
+   */
+  template <class T>
+  std::tuple<T*, size_t> getBlockListPropertyRaw(const std::string& propertyName);
 
 
   /**
@@ -1307,7 +1370,7 @@ TypedListProperty<T>::TypedListProperty(const std::string& name_, int listCountB
 
 template <class T>
 TypedListProperty<T>::TypedListProperty(const std::string& name_, const std::vector<std::vector<T>>& data_)
-    : Property(name_) {
+    : Property(name_), listCountBytes(1) {
   if (typeName<T>() == "unknown") {
     throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
   }
@@ -1321,6 +1384,17 @@ TypedListProperty<T>::TypedListProperty(const std::string& name_, const std::vec
     flattenedIndexStart.push_back(flattenedData.size());
   }
 };
+
+template <class T>
+TypedListProperty<T>::TypedListProperty(const std::string& name_, const std::vector<T>& flattenedData_,
+                                        size_t blockSize)
+    : Property(name_), flattenedData(flattenedData_), fixedSize(blockSize), listCountBytes(1) {
+  if (typeName<T>() == "unknown") {
+    throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
+  }
+  flattenedIndexStart.push_back(0);
+}
+
 
 template <class T>
 TypedListProperty<T>::~TypedListProperty(){};
@@ -1541,7 +1615,11 @@ void TypedListProperty<T>::resize(size_t capacity) {
 
 template <class T>
 size_t TypedListProperty<T>::size() {
+  if(fixedSize == -1) {
   return flattenedIndexStart.size() - 1;
+  } else {
+    return flattenedData.size() / fixedSize;
+  }
 }
 
 
@@ -1660,6 +1738,8 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
 
 Element::Element(const std::string& name_, size_t count_) : name(name_), count(count_) {}
 
+size_t Element::size() const { return count; }
+
 bool Element::hasProperty(const std::string& target) {
   for (std::unique_ptr<Property>& prop : properties) {
     if (prop->name == target) {
@@ -1675,6 +1755,20 @@ bool Element::hasPropertyType(const std::string& target) {
   for (std::unique_ptr<Property>& prop : properties) {
     if (prop->name == target) {
       TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
+      if (castedProp) {
+        return true;
+      }
+      return false;
+    }
+  }
+  return false;
+}
+
+template <class T>
+bool Element::hasListPropertyType(const std::string& target) {
+  for (std::unique_ptr<Property>& prop : properties) {
+    if (prop->name == target) {
+      TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop.get());
       if (castedProp) {
         return true;
       }
@@ -1720,6 +1814,8 @@ void Element::addProperty(const std::string& propertyName, const std::vector<T>&
   }
 
   // Copy to canonical type. Often a no-op, but takes care of standardizing widths across platforms.
+  // TODO why did I decide this is necessary?!? (happens twice more below). Could just move from this array in to
+  // the property during construction to save a copy.
   std::vector<typename CanonicalName<T>::type> canonicalVec(data.begin(), data.end());
 
   properties.push_back(
@@ -1750,6 +1846,31 @@ void Element::addListProperty(const std::string& propertyName, const std::vector
 
   properties.push_back(std::unique_ptr<Property>(
       new TypedListProperty<typename CanonicalName<T>::type>(propertyName, canonicalListVec)));
+}
+
+template <class T>
+void Element::addBlockListProperty(const std::string& propertyName, const std::vector<T>& data, size_t blockLen) {
+
+  if (data.size() != blockLen * count) {
+    throw std::runtime_error(
+        "PLY write: new property " + propertyName +
+        " has size which does not match element and blockLen. Should be size()*blockLen elements.");
+  }
+
+  // If there is already some property with this name, remove it
+  for (size_t i = 0; i < properties.size(); i++) {
+    if (properties[i]->name == propertyName) {
+      properties.erase(properties.begin() + i);
+      i--;
+    }
+  }
+
+
+  // Copy to canonical type. Often a no-op, but takes care of standardizing widths across platforms.
+  std::vector<typename CanonicalName<T>::type> canonicalVec(data.begin(), data.end());
+
+  properties.push_back(std::unique_ptr<Property>(
+      new TypedListProperty<typename CanonicalName<T>::type>(propertyName, canonicalVec, blockLen)));
 }
 
 
@@ -1793,7 +1914,7 @@ std::vector<std::vector<T>> Element::getListPropertyType(const std::string& prop
 
   // Find the property
   std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
-  TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop);
+  TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop.get());
   if (castedProp) {
     return unflattenList(castedProp->flattenedData, castedProp->flattenedIndexStart);
   }
@@ -1832,6 +1953,41 @@ std::vector<std::vector<T>> Element::getListPropertyAnySign(const std::string& p
 
     throw orig_e;
   }
+}
+
+template <class T>
+T* Element::getPropertyRaw(const std::string& propertyName) {
+
+  // Find the property
+  std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
+  TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
+  if (castedProp) {
+    return castedProp->rawTypedBufferPtr();
+  }
+
+  // No match, failure
+  throw std::runtime_error("PLY parser: property " + prop->name + " is not of type type " + typeName<T>() +
+                           ". Has type " + prop->propertyTypeName());
+}
+
+template <class T>
+std::tuple<T*, size_t> Element::getBlockListPropertyRaw(const std::string& propertyName) {
+
+  // Find the property
+  std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
+  TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop.get());
+  if (castedProp) {
+    if (castedProp->isRagged()) {
+      throw std::runtime_error(
+          "PLY parser: list property " + prop->name +
+          " is ragged (sub-lists have different lengths). Cannot access as fixed-width block array.");
+    }
+    return std::make_tuple(castedProp->rawTypedBufferPtr(), (size_t)castedProp->fixedSize);
+  }
+
+  // No match, failure
+  throw std::runtime_error("PLY parser: list property " + prop->name + " is not of type " + typeName<T>() +
+                           ". Has type " + prop->propertyTypeName());
 }
 
 void Element::validate() {
@@ -2474,8 +2630,8 @@ void PLYData::parseBinary(std::istream& inStream, bool verbose) {
 
           // allocate the storage vector to hold block-sized data
           // TODO: there may be a potenial bug here, where a file could have a gigantic first list with a gazillion
-          // entries, and all other lists small. That would make this step try to allocate a ton of memory, leading to
-          // an OOM which is not stricly necessary. My apologies to the future person who encounters this.
+          // entries, and all other lists small. That would make this step try to allocate a ton of memory, leading
+          // to an OOM which is not stricly necessary. My apologies to the future person who encounters this.
           prop.resize(elem.count);
           info = prop.getBlockReadInfo(); // need to reset data pointer inside after vector alloc
 
