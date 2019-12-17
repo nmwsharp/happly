@@ -105,7 +105,7 @@ template <> struct SerializeType< int8_t>               { typedef int32_t   type
 // Give address only if types are same (used below when conditionally copying data)
 // last int/char arg is to resolve ambiguous overloads, just always pass 0 and the int version will be preferred
 template <typename S, typename T>
-S* addressIfSame(T& t, char) {
+S* addressIfSame(T&, char) {
   throw std::runtime_error("tried to take address for types that are not same");
   return nullptr;}
 template <typename S>
@@ -558,7 +558,6 @@ public:
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
     }
-    uint8_t count = static_cast<uint8_t>(dataCount);
 
     outStream << dataCount;
     outStream.precision(std::numeric_limits<T>::max_digits10);
@@ -971,7 +970,7 @@ public:
     // Get a copy of the data with auto-promoting type magic
     return getDataFromListPropertyRecursive<T, T>(prop.get());
   }
-  
+
   /**
    * @brief Get a vector of a data from a property for this element. Unlike getProperty(), only returns if the ply
    * record contains a type that matches T exactly. Throws if * requested data is unavailable.
