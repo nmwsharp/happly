@@ -1439,13 +1439,14 @@ public:
    *
    * @return A vector of vertex positions.
    */
-  std::vector<std::array<double, 3>> getVertexPositions(const std::string& vertexElementName = "vertex") {
+  template<typename T>
+  std::vector<std::array<T, 3>> getVertexPositions(const std::string& vertexElementName = "vertex") {
 
-    std::vector<double> xPos = getElement(vertexElementName).getProperty<double>("x");
-    std::vector<double> yPos = getElement(vertexElementName).getProperty<double>("y");
-    std::vector<double> zPos = getElement(vertexElementName).getProperty<double>("z");
+    std::vector<T> xPos = getElement(vertexElementName).getProperty<T>("x");
+    std::vector<T> yPos = getElement(vertexElementName).getProperty<T>("y");
+    std::vector<T> zPos = getElement(vertexElementName).getProperty<T>("z");
 
-    std::vector<std::array<double, 3>> result(xPos.size());
+    std::vector<std::array<T, 3>> result(xPos.size());
     for (size_t i = 0; i < result.size(); i++) {
       result[i][0] = xPos[i];
       result[i][1] = yPos[i];
