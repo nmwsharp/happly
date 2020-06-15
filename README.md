@@ -93,7 +93,7 @@ happly::PLYData plyOut;
 // Add mesh data (elements are created automatically)
 plyOut.addVertexPositions(meshVertexPositions);
 plyOut.addVertexColors(meshVertexColors);
-plyOut.addFaceIndices(fInd);
+plyOut.addFaceIndices(meshFaceIndices);
 
 
 // Write the object to file
