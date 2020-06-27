@@ -482,12 +482,20 @@ TEST(TypedListReadWriteTest, ReadWriteCharBinary) {
   std::vector<std::vector<char>> testData{
       {3}, {3, 0, 11, -128, 127}, {}, {}, {3, 11},
   };
+  std::cout << "size: " << testData.size() << std::endl;
+  for(auto& v : testData) {
+    std::cout << "sub size: " << v.size() << std::endl;
+  }
   plyOut.getElement("test_elem").addListProperty<char>("test_data", testData);
 
   // ASCII read/write
   plyOut.write("temp.ply", happly::DataFormat::Binary);
   happly::PLYData plyIn("temp.ply");
   std::vector<std::vector<char>> testDataBinary = plyIn.getElement("test_elem").getListProperty<char>("test_data");
+  std::cout << "size: " << testDataBinary.size() << std::endl;
+  for(auto& v : testDataBinary) {
+    std::cout << "sub size: " << v.size() << std::endl;
+  }
   EXPECT_EQ(testData, testDataBinary);
 }
 TEST(TypedListReadWriteTest, ReadWriteCharBinarySwap) {
