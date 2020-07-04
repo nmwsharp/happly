@@ -1145,7 +1145,7 @@ TEST(TypePromotionTest, FaceIndThrow) {
 
   happly::PLYData ply;
   ply.addElement("face", 3);
-  std::vector<std::vector<uint64_t>> faceInds{{1, 3, 1L << 40}, {0, 2, 4, 5}, {1, 1, 1}};
+  std::vector<std::vector<uint64_t>> faceInds{{1, 3, 1LL << 40}, {0, 2, 4, 5}, {1, 1, 1}};
   EXPECT_THROW(ply.getElement("face").addListProperty("vertex_indices", faceInds), std::runtime_error);
 }
 
