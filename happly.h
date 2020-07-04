@@ -497,8 +497,10 @@ public:
     size_t currSize = flattenedData.size();
     size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
-    stream.read((char*)&flattenedData[currSize], count * sizeof(T));
-    flattenedIndexStart.emplace_back(afterSize);
+    if (count > 0) {
+      stream.read((char*)&flattenedData[currSize], count * sizeof(T));
+    }
+	flattenedIndexStart.emplace_back(afterSize);
   }
 
   /**
@@ -523,8 +525,10 @@ public:
     size_t currSize = flattenedData.size();
     size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
-    stream.read((char*)&flattenedData[currSize], count * sizeof(T));
-    flattenedIndexStart.emplace_back(afterSize);
+    if (count > 0) {
+      stream.read((char*)&flattenedData[currSize], count * sizeof(T));
+    }
+	flattenedIndexStart.emplace_back(afterSize);
 
     // Swap endian order of list elements
     for (size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
