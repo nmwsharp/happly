@@ -1215,6 +1215,77 @@ TEST(MeshTest, ReadWriteBinaryMesh) {
   EXPECT_EQ(fInd, fInd2);
 }
 
+
+TEST(MeshTest, ReadWriteBinaryMeshStreamText) {
+
+  // = Read in an interesting mesh file
+  std::ifstream in("../sampledata/spot.ply");
+  happly::PLYData plyIn(in, true);
+  plyIn.validate();
+
+  std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
+  std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices();
+
+  for (std::vector<size_t>& face : fInd) {
+    EXPECT_EQ(face.size(), 3);
+  }
+
+
+  // = Write out the mesh file
+  happly::PLYData plyOut;
+  plyOut.addVertexPositions(vPos);
+  plyOut.addFaceIndices(fInd);
+
+  plyOut.validate();
+  plyOut.write("temp.ply", happly::DataFormat::Binary);
+
+
+  // = Read the mesh file in again and make sure it hasn't changed
+  happly::PLYData plyIn2("temp.ply", false);
+  plyIn2.validate();
+
+  std::vector<std::array<double, 3>> vPos2 = plyIn2.getVertexPositions();
+  std::vector<std::vector<size_t>> fInd2 = plyIn2.getFaceIndices();
+
+  DoubleArrayVecEq(vPos, vPos2);
+  EXPECT_EQ(fInd, fInd2);
+}
+
+TEST(MeshTest, ReadWriteBinaryMeshStreamBinary) {
+
+  // = Read in an interesting mesh file
+  std::ifstream in("../sampledata/spot.ply", std::ios::binary);
+  happly::PLYData plyIn(in, true);
+  plyIn.validate();
+
+  std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
+  std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices();
+
+  for (std::vector<size_t>& face : fInd) {
+    EXPECT_EQ(face.size(), 3);
+  }
+
+
+  // = Write out the mesh file
+  happly::PLYData plyOut;
+  plyOut.addVertexPositions(vPos);
+  plyOut.addFaceIndices(fInd);
+
+  plyOut.validate();
+  plyOut.write("temp.ply", happly::DataFormat::Binary);
+
+
+  // = Read the mesh file in again and make sure it hasn't changed
+  happly::PLYData plyIn2("temp.ply", false);
+  plyIn2.validate();
+
+  std::vector<std::array<double, 3>> vPos2 = plyIn2.getVertexPositions();
+  std::vector<std::vector<size_t>> fInd2 = plyIn2.getFaceIndices();
+
+  DoubleArrayVecEq(vPos, vPos2);
+  EXPECT_EQ(fInd, fInd2);
+}
+
 TEST(MeshTest, ReadWriteBinarySwapMesh) {
 
   // = Read in an interesting mesh file
