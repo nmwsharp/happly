@@ -1190,7 +1190,7 @@ TEST(MeshTest, ReadWriteBinaryMesh) {
   std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
   std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices();
 
-  for (auto std::vector<size_t>& face : fInd) {
+  for (std::vector<size_t>& face : fInd) {
     EXPECT_EQ(face.size(), 3);
   }
 
