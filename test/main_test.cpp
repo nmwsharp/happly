@@ -1,9 +1,9 @@
 #include "happly.h"
 
-#include <iostream>
-#include <string>
 #include <chrono>
+#include <iostream>
 #include <random>
+#include <string>
 
 #include "gtest/gtest.h"
 
@@ -483,7 +483,7 @@ TEST(TypedListReadWriteTest, ReadWriteCharBinary) {
       {3}, {3, 0, 11, -128, 127}, {}, {}, {3, 11},
   };
   std::cout << "size: " << testData.size() << std::endl;
-  for(auto& v : testData) {
+  for (auto& v : testData) {
     std::cout << "sub size: " << v.size() << std::endl;
   }
   plyOut.getElement("test_elem").addListProperty<char>("test_data", testData);
@@ -493,7 +493,7 @@ TEST(TypedListReadWriteTest, ReadWriteCharBinary) {
   happly::PLYData plyIn("temp.ply");
   std::vector<std::vector<char>> testDataBinary = plyIn.getElement("test_elem").getListProperty<char>("test_data");
   std::cout << "size: " << testDataBinary.size() << std::endl;
-  for(auto& v : testDataBinary) {
+  for (auto& v : testDataBinary) {
     std::cout << "sub size: " << v.size() << std::endl;
   }
   EXPECT_EQ(testData, testDataBinary);
@@ -1066,7 +1066,7 @@ TEST(TypePromotionTest, PromoteUnsigned) {
   EXPECT_EQ(dataC, ply.getElement("test_elem").getProperty<unsigned char>("data"));
   EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<unsigned short>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<unsigned int>("data"));
-  //EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<unsigned long long int>("data"));
+  // EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<unsigned long long int>("data"));
   EXPECT_EQ(dataSZ, ply.getElement("test_elem").getProperty<size_t>("data"));
 }
 
@@ -1089,7 +1089,7 @@ TEST(TypePromotionTest, PromoteSigned) {
   EXPECT_EQ(dataS, ply.getElement("test_elem").getProperty<short>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<int32_t>("data"));
   EXPECT_EQ(dataI, ply.getElement("test_elem").getProperty<int>("data"));
-  //EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<long long int>("data"));
+  // EXPECT_EQ(dataL, ply.getElement("test_elem").getProperty<long long int>("data"));
   EXPECT_EQ(data64, ply.getElement("test_elem").getProperty<int64_t>("data"));
 }
 
@@ -1136,7 +1136,7 @@ TEST(TypePromotionTest, FaceIndSign) {
 
   std::vector<std::vector<int>> faceIndGetI = ply.getFaceIndices<int>();
   EXPECT_EQ(faceIndsI, faceIndGetI);
-  
+
   std::vector<std::vector<unsigned int>> faceIndGetU = ply.getFaceIndices<unsigned int>();
   EXPECT_NE(faceIndsU, faceIndGetU);
 }
@@ -1189,6 +1189,10 @@ TEST(MeshTest, ReadWriteBinaryMesh) {
 
   std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
   std::vector<std::vector<size_t>> fInd = plyIn.getFaceIndices();
+
+  for (auto std::vector<size_t>& face : fInd) {
+    EXPECT_EQ(face.size(), 3);
+  }
 
 
   // = Write out the mesh file
@@ -1245,7 +1249,7 @@ TEST(MeshTest, ReadWriteBinarySwapMesh) {
 TEST(MeshTest, ReadWriteASCIIMeshStream) {
 
   // = Read the PLY from an input stream
-  std::ifstream file ("../sampledata/platonic_shelf_ascii.ply");
+  std::ifstream file("../sampledata/platonic_shelf_ascii.ply");
   happly::PLYData plyIn(file, false);
   plyIn.validate();
   file.close();
@@ -1279,7 +1283,7 @@ TEST(MeshTest, ReadWriteASCIIMeshStream) {
 TEST(MeshTest, ReadWriteBinaryMeshStream) {
 
   // = Read in an interesting mesh file
-  std::ifstream file ("../sampledata/platonic_shelf_ascii.ply");
+  std::ifstream file("../sampledata/platonic_shelf_ascii.ply");
   happly::PLYData plyIn(file, false);
   plyIn.validate();
   file.close();
@@ -1351,7 +1355,8 @@ TEST(PerfTest, WriteReadFloatList) {
 
   // Finish timing
   auto tEnd = std::chrono::steady_clock::now();
-  std::cout << "  time elapsed = " << std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count() << "us" << std::endl;
+  std::cout << "  time elapsed = " << std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count()
+            << "us" << std::endl;
 }
 
 
