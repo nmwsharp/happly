@@ -1184,7 +1184,7 @@ TEST(MeshTest, ReadWriteBinaryMesh) {
 
   // = Read in an interesting mesh file
   // happly::PLYData plyIn("../sampledata/platonic_shelf.ply", false);
-  happly::PLYData plyIn("../sampledata/spot.ply", false);
+  happly::PLYData plyIn("../sampledata/spot.ply", true);
   plyIn.validate();
 
   std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
