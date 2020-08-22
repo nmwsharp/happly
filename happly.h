@@ -39,6 +39,7 @@ SOFTWARE.
 
   Significant changes to the file recorded here.
 
+  - Version 5 (Aug 22, 2020)      Minor: skip blank lines before properties in ASCII files
   - Version 4 (Sep 11, 2019)      Change internal list format to be flat. Other small perf fixes and cleanup.
   - Version 3 (Aug 1, 2019)       Add support for big endian and obj_info
   - Version 2 (July 20, 2019)     Catch exceptions by const reference.
@@ -500,7 +501,7 @@ public:
     if (count > 0) {
       stream.read((char*)&flattenedData[currSize], count * sizeof(T));
     }
-	flattenedIndexStart.emplace_back(afterSize);
+    flattenedIndexStart.emplace_back(afterSize);
   }
 
   /**
@@ -528,7 +529,7 @@ public:
     if (count > 0) {
       stream.read((char*)&flattenedData[currSize], count * sizeof(T));
     }
-	flattenedIndexStart.emplace_back(afterSize);
+    flattenedIndexStart.emplace_back(afterSize);
 
     // Swap endian order of list elements
     for (size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
@@ -1845,6 +1846,14 @@ private:
 
         string line;
         std::getline(inStream, line);
+
+        // Some .ply files seem to include empty lines before the start of property data (though this is not specified
+        // in the format description). We attempt to recover and parse such files by skipping any empty lines.
+        if (!elem.properties.empty()) { // if the element has no properties, the line _should_ be blank, presumably
+          while (line.empty()) { // skip lines until we hit something nonempty
+            std::getline(inStream, line);
+          }
+        }
 
         vector<string> tokens = tokenSplit(line);
         size_t iTok = 0;
