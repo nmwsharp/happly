@@ -1845,6 +1845,9 @@ private:
 
         string line;
         std::getline(inStream, line);
+        while (line.empty()) {
+            std::getline(inStream, line);
+        }
 
         vector<string> tokens = tokenSplit(line);
         size_t iTok = 0;
