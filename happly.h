@@ -951,7 +951,7 @@ public:
 
     // Find the property
     std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
-    TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop);
+    TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
     if (castedProp) {
       return castedProp->data;
     }
@@ -994,7 +994,7 @@ public:
 
     // Find the property
     std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
-    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop);
+    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop.get());
     if (castedProp) {
       return unflattenList(castedProp->flattenedData, castedProp->flattenedIndexStart);
     }
