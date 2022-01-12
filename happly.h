@@ -518,11 +518,11 @@ public:
     // Read the size of the list
     size_t count = 0;
     stream.read(((char*)&count), listCountBytes);
-    if (listCountBytes == 8) {
+    if (listCountBytes == sizeof(uint64_t)) {
       count = (size_t)swapEndian((uint64_t)count);
-    } else if (listCountBytes == 4) {
+    } else if (listCountBytes == sizeof(uint32_t)) {
       count = (size_t)swapEndian((uint32_t)count);
-    } else if (listCountBytes == 2) {
+    } else if (listCountBytes == sizeof(uint16_t)) {
       count = (size_t)swapEndian((uint16_t)count);
     }
 
