@@ -10,6 +10,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+### Find dependencies
+find_package(Boost QUIET)
+
 ### Compile options
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   # using Clang (linux or apple) or GCC
@@ -87,7 +90,10 @@ target_link_libraries(ply-test gtest)
 
 target_include_directories(ply-test PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
+if(Boost_FOUND)
+target_compile_definitions(ply-test PRIVATE HAS_BOOST)
+endif()
+
 # Add cmake test target  ("make test")
 enable_testing()
 add_test(MainTest ply-test)
-
