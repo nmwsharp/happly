@@ -129,6 +129,29 @@ public:
    * @param name_
    */
   Property(const std::string& name_) : name(name_){};
+
+  Property(const Property& rhs) { name = rhs.name; }
+
+  Property(Property&& rhs) { name = std::move(rhs.name); }
+
+  Property& operator=(const Property& rhs) {
+
+    if (this != &rhs) {
+      name = rhs.name;
+    }
+
+    return *this;
+  }
+
+  Property& operator=(Property&& rhs) {
+
+    if (this != &rhs) {
+      name = std::move(rhs.name);
+    }
+
+    return *this;
+  }
+
   virtual ~Property(){};
 
   std::string name;
@@ -206,6 +229,8 @@ public:
    * @return
    */
   virtual std::string propertyTypeName() = 0;
+
+  virtual std::unique_ptr<Property> clone() const = 0;
 };
 
 namespace {
@@ -301,6 +326,30 @@ public:
   };
 
   virtual ~TypedProperty() override{};
+
+  TypedProperty(const TypedProperty<T>& rhs) : Property(rhs) { 
+      
+    // Deep copy the vector elements
+    data.reserve(rhs.data.size());
+    std::copy(rhs.data.begin(), rhs.data.end(), std::back_inserter(data));
+  }
+
+  TypedProperty<T>& operator=(const TypedProperty<T>& rhs) {
+
+    if (this != &other) {
+      Property::operator=(rhs);
+
+      // Deep copy the vector elements
+      data.clear();
+      data.reserve(rhs.data.size());
+      std::copy(rhs.data.begin(), rhs.data.end(), std::back_inserter(data));
+    }
+
+    return *this;
+  }
+
+  TypedProperty(TypedProperty<T>&& rhs) = delete;
+  TypedProperty<T>& operator=(TypedProperty<T>&& rhs) = delete;
 
   /**
    * @brief Reserve memory.
@@ -401,6 +450,8 @@ public:
    */
   virtual std::string propertyTypeName() override { return typeName<T>(); }
 
+  std::unique_ptr<Property> clone() const override { return std::make_unique<TypedProperty>(*this); }
+
   /**
    * @brief The actual data contained in the property
    */
@@ -448,6 +499,36 @@ public:
       flattenedIndexStart.push_back(flattenedData.size());
     }
   };
+
+  TypedListProperty(const TypedListProperty<T>& rhs) : Property(rhs) {
+
+    listCountBytes = rhs.listCountBytes;
+    flattenedIndexStart = rhs.flattenedIndexStart;
+
+    // Deep copy the vector elements
+    flattenedData.reserve(rhs.flattenedData.size());
+    std::copy(rhs.flattenedData.begin(), rhs.flattenedData.end(), std::back_inserter(flattenedData));
+  }
+
+  TypedListProperty<T>& operator=(const TypedListProperty<T>& rhs) {
+
+    if (this != &other) {
+      Property::operator=(rhs);
+
+      listCountBytes = rhs.listCountBytes;
+      flattenedIndexStart = rhs.flattenedIndexStart;
+
+      // Deep copy the vector elements
+      data.clear();
+      flattenedData.reserve(rhs.flattenedData.size());
+      std::copy(rhs.flattenedData.begin(), rhs.flattenedData.end(), std::back_inserter(flattenedData));
+    }
+
+    return *this;
+  }
+
+  TypedListProperty(TypedListProperty<T>&& rhs) = delete;
+  TypedListProperty<T>& operator=(TypedListProperty<T>&& rhs) = delete;
 
   virtual ~TypedListProperty() override{};
 
@@ -637,6 +718,8 @@ public:
    */
   virtual std::string propertyTypeName() override { return typeName<T>(); }
 
+  std::unique_ptr<Property> clone() const override { return std::make_unique<TypedListProperty>(*this); }
+
   /**
    * @brief The (flattened) data for the property, as formed by concatenating all of the individual element lists
    * together.
@@ -785,6 +868,49 @@ public:
    * @param count_ Number of instances of this element.
    */
   Element(const std::string& name_, size_t count_) : name(name_), count(count_) {}
+
+  Element(const Element& rhs) { 
+      name = rhs.name;
+      count = rhs.count;
+
+      //deep copy 
+      properties.reserve(this->properties.size());
+      for (const auto& element : this->properties) {
+        properties.push_back(element->clone());
+      }
+  }
+
+  Element operator=(const Element& rhs)
+  {
+      if (this != &rhs) {
+        name = rhs.name;
+        count = rhs.count;
+
+        // deep copy
+        properties.clear();
+        properties.reserve(this->properties.size());
+        for (const auto& element : this->properties) {
+            properties.push_back(element->clone());
+        }
+      }
+
+      return *this;
+  }
+
+  Element(Element&& rhs) {
+      name = std::move(rhs.name);
+      count = std::move(rhs.count);
+      properties = std::move(rhs.properties);
+  }
+
+  Element operator=(Element&& rhs) {
+
+      if (this != &rhs) {
+        name = std::move(rhs.name);
+        count = std::move(rhs.count);
+        properties = std::move(rhs.properties);
+      }
+  }
 
   std::string name;
   size_t count;
@@ -1326,6 +1452,30 @@ public:
     if (verbose) {
       cout << "  - Finished parsing stream." << endl;
     }
+  }
+
+  PLYData(const PLYData&) = delete;
+  PLYData& operator=(const PLYData&) = delete;
+  PLYData(PLYData&&) = delete;
+  PLYData& operator=(PLYData&&) = delete;
+
+  PLYData& copy() {
+
+      PLYData tmp;
+
+      //copy comments
+      for (const auto& comments : this->comments) {
+          tmp.comments.push_back(comments); // Create new copies of each string
+      }
+
+      //copy obj_info comments
+      for (const auto& objInfoComments : this->objInfoComments) {
+          tmp.objInfoComments.push_back(objInfoComments); // Create new copies of each string
+      }
+
+      tmp.elements = this->elements;
+
+      return std::move(tmp);
   }
 
   /**
