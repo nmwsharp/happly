@@ -77,6 +77,9 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 
 set_property(TARGET gtest PROPERTY CXX_STANDARD 14)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Test executable
 add_executable(ply-test
