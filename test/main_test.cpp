@@ -36,7 +36,7 @@ TEST(TypedReadWriteTest, ReadWriteCharASCII) {
   // Create a simple file
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
-  std::vector<char> testData{-3, 4, 11, -12, 122};
+  std::vector<char> testData{static_cast<char>(-3), 4, 11, static_cast<char>(-12), 122};
   plyOut.getElement("test_elem").addProperty<char>("test_data", testData);
 
   // ASCII read/write
@@ -50,7 +50,7 @@ TEST(TypedReadWriteTest, ReadWriteCharBinary) {
   // Create a simple file
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
-  std::vector<char> testData{-3, 4, 11, -12, 122};
+  std::vector<char> testData{static_cast<char>(-3), 4, 11, static_cast<char>(-12), 122};
   plyOut.getElement("test_elem").addProperty<char>("test_data", testData);
 
   // Binary read/write
@@ -64,7 +64,7 @@ TEST(TypedReadWriteTest, ReadWriteCharBinarySwap) {
   // Create a simple file
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
-  std::vector<char> testData{-3, 4, 11, -12, 122};
+  std::vector<char> testData{static_cast<char>(-3), 4, 11, static_cast<char>(-12), 122};
   plyOut.getElement("test_elem").addProperty<char>("test_data", testData);
 
   // Binary read/write
@@ -464,7 +464,7 @@ TEST(TypedListReadWriteTest, ReadWriteCharASCII) {
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
   std::vector<std::vector<char>> testData{
-      {3}, {3, 0, 11, -128, 127}, {}, {}, {3, 11},
+      {3}, {3, 0, 11, static_cast<char>(-128), 127}, {}, {}, {3, 11},
   };
   plyOut.getElement("test_elem").addListProperty<char>("test_data", testData);
 
@@ -480,7 +480,7 @@ TEST(TypedListReadWriteTest, ReadWriteCharBinary) {
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
   std::vector<std::vector<char>> testData{
-      {3}, {3, 0, 11, -128, 127}, {}, {}, {3, 11},
+      {3}, {3, 0, 11, static_cast<char>(-128), 127}, {}, {}, {3, 11},
   };
   std::cout << "size: " << testData.size() << std::endl;
   for(auto& v : testData) {
@@ -504,7 +504,7 @@ TEST(TypedListReadWriteTest, ReadWriteCharBinarySwap) {
   happly::PLYData plyOut;
   plyOut.addElement("test_elem", 5);
   std::vector<std::vector<char>> testData{
-      {3}, {3, 0, 11, -128, 127}, {}, {}, {3, 11},
+      {3}, {3, 0, 11, static_cast<char>(-128), 127}, {}, {}, {3, 11},
   };
   plyOut.getElement("test_elem").addListProperty<char>("test_data", testData);
 
@@ -1074,11 +1074,11 @@ TEST(TypePromotionTest, PromoteSigned) {
 
   happly::PLYData ply;
   ply.addElement("test_elem", 3);
-  std::vector<char> data{1, -3, 5};
+  std::vector<char> data{1, static_cast<char>(-3), 5};
   ply.getElement("test_elem").addProperty("data", data);
 
 
-  std::vector<char> dataC{1, -3, 5};
+  std::vector<char> dataC{1, static_cast<char>(-3), 5};
   std::vector<short> dataS{1, -3, 5};
   std::vector<int> dataI{1, -3, 5};
   std::vector<long long int> dataL{1, -3, 5};
@@ -1136,7 +1136,7 @@ TEST(TypePromotionTest, FaceIndSign) {
 
   std::vector<std::vector<int>> faceIndGetI = ply.getFaceIndices<int>();
   EXPECT_EQ(faceIndsI, faceIndGetI);
-  
+
   std::vector<std::vector<unsigned int>> faceIndGetU = ply.getFaceIndices<unsigned int>();
   EXPECT_NE(faceIndsU, faceIndGetU);
 }
