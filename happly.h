@@ -76,6 +76,8 @@ template<> inline std::string typeName<int16_t>()           { return "short";   
 template<> inline std::string typeName<uint16_t>()          { return "ushort";  }
 template<> inline std::string typeName<int32_t>()           { return "int";     }
 template<> inline std::string typeName<uint32_t>()          { return "uint";    }
+template<> inline std::string typeName<int64_t>()           { return "int64";     }
+template<> inline std::string typeName<uint64_t>()          { return "uint64";    }
 template<> inline std::string typeName<float>()             { return "float";   }
 template<> inline std::string typeName<double>()            { return "double";  }
 
@@ -518,11 +520,11 @@ public:
     // Read the size of the list
     size_t count = 0;
     stream.read(((char*)&count), listCountBytes);
-    if (listCountBytes == 8) {
+    if (listCountBytes == sizeof(uint64_t)) {
       count = (size_t)swapEndian((uint64_t)count);
-    } else if (listCountBytes == 4) {
+    } else if (listCountBytes == sizeof(uint32_t)) {
       count = (size_t)swapEndian((uint32_t)count);
-    } else if (listCountBytes == 2) {
+    } else if (listCountBytes == sizeof(uint16_t)) {
       count = (size_t)swapEndian((uint16_t)count);
     }
 
@@ -675,13 +677,15 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   if (isList) {
     if (listCountTypeStr == "uchar" || listCountTypeStr == "uint8" || listCountTypeStr == "char" ||
         listCountTypeStr == "int8") {
-      listCountBytes = 1;
+      listCountBytes = sizeof(uint8_t);
     } else if (listCountTypeStr == "ushort" || listCountTypeStr == "uint16" || listCountTypeStr == "short" ||
                listCountTypeStr == "int16") {
-      listCountBytes = 2;
+      listCountBytes = sizeof(uint16_t);
     } else if (listCountTypeStr == "uint" || listCountTypeStr == "uint32" || listCountTypeStr == "int" ||
                listCountTypeStr == "int32") {
-      listCountBytes = 4;
+      listCountBytes = sizeof(uint32_t);
+    } else if (listCountTypeStr == "uint64" || listCountTypeStr == "int64") {
+      listCountBytes = sizeof(uint64_t);
     } else {
       throw std::runtime_error("Unrecognized list count type: " + listCountTypeStr);
     }
@@ -716,6 +720,15 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
     }
   }
 
+  // 64 bit unsigned
+  else if (typeStr == "uint64") {
+    if (isList) {
+      return std::unique_ptr<Property>(new TypedListProperty<uint64_t>(name, listCountBytes));
+    } else {
+      return std::unique_ptr<Property>(new TypedProperty<uint64_t>(name));
+    }
+  }
+
   // = Signed int
 
   // 8 bit signed
@@ -742,6 +755,15 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
       return std::unique_ptr<Property>(new TypedListProperty<int32_t>(name, listCountBytes));
     } else {
       return std::unique_ptr<Property>(new TypedProperty<int32_t>(name));
+    }
+  }
+
+  // 64 bit signed
+  else if (typeStr == "int64") {
+    if (isList) {
+      return std::unique_ptr<Property>(new TypedListProperty<int64_t>(name, listCountBytes));
+    } else {
+      return std::unique_ptr<Property>(new TypedProperty<int64_t>(name));
     }
   }
 
@@ -1612,7 +1634,7 @@ public:
 
   /**
    * @brief Common-case helper to set face indices. Creates a face element if needed. The input type will be casted to a
-   * 32 bit integer of the same signedness.
+   * 64 bit integer of the same signedness.
    *
    * @param indices The indices into the vertex list around each face.
    */
@@ -1627,8 +1649,8 @@ public:
       addElement(faceName, N);
     }
 
-    // Cast to 32 bit
-    typedef typename std::conditional<std::is_signed<T>::value, int32_t, uint32_t>::type IndType;
+    // Cast to 64 bit
+    typedef typename std::conditional<std::is_signed<T>::value, int64_t, uint64_t>::type IndType;
     std::vector<std::vector<IndType>> intInds;
     for (std::vector<T>& l : indices) {
       std::vector<IndType> thisInds;
@@ -1637,7 +1659,7 @@ public:
         if (valConverted != val) {
           throw std::runtime_error("Index value " + std::to_string(val) +
                                    " could not be converted to a .ply integer without loss of data. Note that .ply "
-                                   "only supports 32-bit ints.");
+                                   "only supports 64-bit ints.");
         }
         thisInds.push_back(valConverted);
       }
