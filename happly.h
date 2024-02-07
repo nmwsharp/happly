@@ -123,7 +123,17 @@ S* addressIfSame(S& t, int) {return &t;}
 // clang-format on
 } // namespace
 
-#if !HAPPLY_ENABLE_RTTI
+#if HAPPLY_ENABLE_RTTI
+
+class RTTIRoot {};
+
+template <typename ThisT, typename ParentT>
+class RTTIExtends : public ParentT {
+  // Inherit constructors from ParentT.
+  using ParentT::ParentT;
+};
+
+#else
 
 template<bool Dummy = true>
 class RTTIRootId {
@@ -208,11 +218,7 @@ public:
  * type.  Generally, the user should not need to interact with these directly, but they are exposed in case someone
  * wants to get clever.
  */
-#if HAPPLY_ENABLE_RTTI
-class Property {
-#else
 class Property : public RTTIExtends<Property, RTTIRoot> {
-#endif
 
 public:
   /**
@@ -387,16 +393,11 @@ std::vector<std::vector<T>> unflattenList(const std::vector<T>& flatList, const 
  * @brief A property which takes a single value (not a list).
  */
 template <class T>
-#if HAPPLY_ENABLE_RTTI
-class TypedProperty : public Property {
-  using Super = Property;
-#else
 class TypedProperty : public RTTIExtends<TypedProperty<T>, Property> {
   using Super = RTTIExtends<TypedProperty<T>, Property>;
 
 public:
   static constexpr char ID = 0;
-#endif
 
 public:
   /**
@@ -530,25 +531,18 @@ public:
   std::vector<T> data;
 };
 
-#if !HAPPLY_ENABLE_RTTI
 template <class T>
 constexpr char TypedProperty<T>::ID;
-#endif
 
 /**
  * @brief A property which is a list of value (eg, 3 doubles). Note that lists are always variable length per-element.
  */
 template <class T>
-#if HAPPLY_ENABLE_RTTI
-class TypedListProperty : public Property {
-  using Super = Property;
-#else
 class TypedListProperty : public RTTIExtends<TypedListProperty<T>, Property> {
   using Super = RTTIExtends<TypedListProperty<T>, Property>;
 
 public:
   static constexpr char ID = 0;
-#endif
 
 public:
   /**
@@ -791,10 +785,8 @@ public:
   int listCountBytes = -1;
 };
 
-#if !HAPPLY_ENABLE_RTTI
 template <class T>
 constexpr char TypedListProperty<T>::ID;
-#endif
 
 /**
  * @brief Helper function to construct a new property of the appropriate type.
