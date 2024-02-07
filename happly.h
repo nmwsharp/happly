@@ -60,6 +60,14 @@ SOFTWARE.
 #include <vector>
 #include <climits>
 
+#if __clang__ && !__INTEL_COMPILER
+    #define HAPPLY_ENABLE_RTTI __has_feature(cxx_rtti)
+#elif defined(_CPPRTTI)
+    #define HAPPLY_ENABLE_RTTI 1
+#else
+    #define HAPPLY_ENABLE_RTTI (__GXX_RTTI || __RTTI || __INTEL_RTTI__)
+#endif
+
 // General namespace wrapping all Happly things.
 namespace happly {
 
@@ -115,12 +123,96 @@ S* addressIfSame(S& t, int) {return &t;}
 // clang-format on
 } // namespace
 
+#if !HAPPLY_ENABLE_RTTI
+
+template<bool Dummy = true>
+class RTTIRootId {
+
+public:
+  virtual ~RTTIRootId() = default;
+
+public:
+  static constexpr char ID = 0;
+};
+
+template<bool Dummy>
+constexpr char RTTIRootId<Dummy>::ID;
+
+/**
+  * @brief Base class for the extensible RTTI hierarchy.
+  *
+  * This class defines virtual methods, dynamicClassID and isA, that enable type comparisons.
+  */
+class RTTIRoot : public RTTIRootId<> {
+public:
+  virtual ~RTTIRoot() = default;
+
+  /**
+   * @brief Returns the class ID for this type.
+   */
+  static const void *classID() { return &ID; }
+
+  /**
+   * @brief Returns the class ID for the dynamic type of this RTTIRoot instance.
+   */
+  virtual const void *dynamicClassID() const = 0;
+
+  /**
+   * @brief Returns true if this class's ID matches the given class ID.
+   */
+  virtual bool isA(const void *const ClassID) const {
+    return ClassID == classID();
+  }
+
+  /**
+   * @brief Check whether this instance is a subclass of QueryT.
+   */
+  template <typename QueryT>
+  bool isIntanceOf() const { return isA(QueryT::classID()); }
+};
+
+/**
+ * @brief Inheritance utility for extensible RTTI.
+ *
+ * Supports single inheritance only: A class can only have one ExtensibleRTTI-parent (i.e. a parent
+ * for which the isa<> test will work), though it can have many non-ExtensibleRTTI parents.
+ *
+ * RTTIExtents uses CRTP so the first template argument to RTTIExtends is the newly introduced
+ * type, and the *second* argument is the parent class.
+ *
+ * class MyType : public RTTIExtends<MyType, RTTIRoot> { public: static char ID; };
+ *
+ * class MyDerivedType : public RTTIExtends<MyDerivedType, MyType> { public: static char ID; };
+ */
+template <typename ThisT, typename ParentT>
+class RTTIExtends : public ParentT {
+public:
+  // Inherit constructors from ParentT.
+  using ParentT::ParentT;
+
+  static const void *classID() { return &ThisT::ID; }
+
+  const void *dynamicClassID() const override { return &ThisT::ID; }
+
+  bool isA(const void *const ClassID) const override {
+    return ClassID == classID() || ParentT::isA(ClassID);
+  }
+
+  static bool classof(const RTTIRoot *R) { return R->isIntanceOf<ThisT>(); }
+};
+
+#endif
+
 /**
  * @brief A generic property, which is associated with some element. Can be plain Property or a ListProperty, of some
  * type.  Generally, the user should not need to interact with these directly, but they are exposed in case someone
  * wants to get clever.
  */
+#if HAPPLY_ENABLE_RTTI
 class Property {
+#else
+class Property : public RTTIExtends<Property, RTTIRoot> {
+#endif
 
 public:
   /**
@@ -206,6 +298,28 @@ public:
    * @return
    */
   virtual std::string propertyTypeName() = 0;
+
+  /**
+   * @brief Attemps a dynamic cast to a derived class.
+   *
+   * @tparam     DerivedPtr  Derived class to cast to.
+   *
+   * @return     A pointer to the derived class instance (if the cast is valid). A nullptr otherwise.
+   */
+  template <typename DerivedPtr>
+  typename std::add_pointer<typename std::decay<typename std::remove_pointer<DerivedPtr>::type>::type>::type downcast()
+  {
+#if HAPPLY_ENABLE_RTTI
+    using Derived = typename std::decay<typename std::remove_pointer<DerivedPtr>::type>::type;
+    return dynamic_cast<Derived*>(this);
+#else
+    using Derived = typename std::decay<typename std::remove_pointer<DerivedPtr>::type>::type;
+    if (isIntanceOf<Derived>()) {
+      return static_cast<Derived*>(this);
+    }
+    return nullptr;
+#endif
+  }
 };
 
 namespace {
@@ -273,7 +387,16 @@ std::vector<std::vector<T>> unflattenList(const std::vector<T>& flatList, const 
  * @brief A property which takes a single value (not a list).
  */
 template <class T>
+#if HAPPLY_ENABLE_RTTI
 class TypedProperty : public Property {
+  using Super = Property;
+#else
+class TypedProperty : public RTTIExtends<TypedProperty<T>, Property> {
+  using Super = RTTIExtends<TypedProperty<T>, Property>;
+
+public:
+  static constexpr char ID = 0;
+#endif
 
 public:
   /**
@@ -281,7 +404,7 @@ public:
    *
    * @param name_
    */
-  TypedProperty(const std::string& name_) : Property(name_) {
+  TypedProperty(const std::string& name_) : Super(name_) {
     if (typeName<T>() == "unknown") {
       // TODO should really be a compile-time error
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
@@ -294,7 +417,7 @@ public:
    * @param name_
    * @param data_
    */
-  TypedProperty(const std::string& name_, const std::vector<T>& data_) : Property(name_), data(data_) {
+  TypedProperty(const std::string& name_, const std::vector<T>& data_) : Super(name_), data(data_) {
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
@@ -351,7 +474,7 @@ public:
    * @param outStream Stream to write to.
    */
   virtual void writeHeader(std::ostream& outStream) override {
-    outStream << "property " << typeName<T>() << " " << name << "\n";
+    outStream << "property " << typeName<T>() << " " << this->name << "\n";
   }
 
   /**
@@ -407,12 +530,25 @@ public:
   std::vector<T> data;
 };
 
+#if !HAPPLY_ENABLE_RTTI
+template <class T>
+constexpr char TypedProperty<T>::ID;
+#endif
 
 /**
  * @brief A property which is a list of value (eg, 3 doubles). Note that lists are always variable length per-element.
  */
 template <class T>
+#if HAPPLY_ENABLE_RTTI
 class TypedListProperty : public Property {
+  using Super = Property;
+#else
+class TypedListProperty : public RTTIExtends<TypedListProperty<T>, Property> {
+  using Super = RTTIExtends<TypedListProperty<T>, Property>;
+
+public:
+  static constexpr char ID = 0;
+#endif
 
 public:
   /**
@@ -420,7 +556,7 @@ public:
    *
    * @param name_
    */
-  TypedListProperty(const std::string& name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_) {
+  TypedListProperty(const std::string& name_, int listCountBytes_) : Super(name_), listCountBytes(listCountBytes_) {
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
@@ -434,7 +570,7 @@ public:
    * @param name_
    * @param data_
    */
-  TypedListProperty(const std::string& name_, const std::vector<std::vector<T>>& data_) : Property(name_) {
+  TypedListProperty(const std::string& name_, const std::vector<std::vector<T>>& data_) : Super(name_) {
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
@@ -548,7 +684,7 @@ public:
    */
   virtual void writeHeader(std::ostream& outStream) override {
     // NOTE: We ALWAYS use uchar as the list count output type
-    outStream << "property list uchar " << typeName<T>() << " " << name << "\n";
+    outStream << "property list uchar " << typeName<T>() << " " << this->name << "\n";
   }
 
   /**
@@ -655,6 +791,10 @@ public:
   int listCountBytes = -1;
 };
 
+#if !HAPPLY_ENABLE_RTTI
+template <class T>
+constexpr char TypedListProperty<T>::ID;
+#endif
 
 /**
  * @brief Helper function to construct a new property of the appropriate type.
@@ -818,7 +958,7 @@ public:
   bool hasPropertyType(const std::string& target) {
     for (std::unique_ptr<Property>& prop : properties) {
       if (prop->name == target) {
-        TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
+        TypedProperty<T>* castedProp = prop->downcast<TypedProperty<T>*>();
         if (castedProp) {
           return true;
         }
@@ -1157,7 +1297,7 @@ public:
     typedef typename CanonicalName<T>::type Tcan;
 
     { // Try to return data of type D from a property of type T
-      TypedProperty<Tcan>* castedProp = dynamic_cast<TypedProperty<Tcan>*>(prop);
+      TypedProperty<Tcan>* castedProp = prop->downcast<TypedProperty<Tcan>*>();
       if (castedProp) {
         // Succeeded, return a buffer of the data (copy while converting type)
         std::vector<D> castedVec;
@@ -1194,7 +1334,7 @@ public:
   std::vector<std::vector<D>> getDataFromListPropertyRecursive(Property* prop) {
     typedef typename CanonicalName<T>::type Tcan;
 
-    TypedListProperty<Tcan>* castedProp = dynamic_cast<TypedListProperty<Tcan>*>(prop);
+    TypedListProperty<Tcan>* castedProp = prop->downcast<TypedListProperty<Tcan>*>();
     if (castedProp) {
       // Succeeded, return a buffer of the data (copy while converting type)
 
