@@ -1,5 +1,8 @@
 # hapPLY
-![](https://travis-ci.com/nmwsharp/happly.svg?branch=master)
+
+[![actions status linux](https://github.com/nmwsharp/happly/workflows/linux/badge.svg)](https://github.com/nmwsharp/happly/actions)
+[![actions status macOS](https://github.com/nmwsharp/happly/workflows/macOS/badge.svg)](https://github.com/nmwsharp/happly/actions)
+[![actions status windows](https://github.com/nmwsharp/happly/workflows/windows/badge.svg)](https://github.com/nmwsharp/happly/actions)
 
 <p align="center">
 <img src="https://github.com/nmwsharp/happly/blob/master/happly_logo.jpg" width="200"> 
