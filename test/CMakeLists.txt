@@ -11,10 +11,15 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 ### Compile options
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   # using Clang (linux or apple) or GCC
   message("Using clang/gcc compiler flags")
-  SET(BASE_CXX_FLAGS "-std=c++14 -Wall -Wextra -Werror -g3")
+  SET(BASE_CXX_FLAGS "-Wall -Wextra -g3")
   SET(DISABLED_WARNINGS " -Wno-unused-parameter -Wno-unused-variable -Wno-unused-private-field -Wno-unused-function -Wno-deprecated-declarations")
   SET(TRACE_INCLUDES " -H -Wno-error=unused-command-line-argument")
 
@@ -76,10 +81,6 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
                  EXCLUDE_FROM_ALL)
 
 set_property(TARGET gtest PROPERTY CXX_STANDARD 14)
-
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Test executable
 add_executable(ply-test
