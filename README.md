@@ -1,9 +1,3 @@
-# hapPLY
-
-[![actions status linux](https://github.com/nmwsharp/happly/workflows/linux/badge.svg)](https://github.com/nmwsharp/happly/actions)
-[![actions status macOS](https://github.com/nmwsharp/happly/workflows/macOS/badge.svg)](https://github.com/nmwsharp/happly/actions)
-[![actions status windows](https://github.com/nmwsharp/happly/workflows/windows/badge.svg)](https://github.com/nmwsharp/happly/actions)
-
 <p align="center">
 <img src="https://github.com/nmwsharp/happly/blob/master/happly_logo.jpg" width="200"> 
 </p>
@@ -15,6 +9,10 @@
 - Supports general data in `.ply` files, along with common-case helpers for reading/writing mesh data!
 - Automatic type promotion-- eg, if a file contains a `float` field, you can seamlessly read it as a `double`!
 - Tested, documented, and MIT-licensed!
+
+[![actions status linux](https://github.com/nmwsharp/happly/workflows/linux/badge.svg)](https://github.com/nmwsharp/happly/actions)
+[![actions status macOS](https://github.com/nmwsharp/happly/workflows/macOS/badge.svg)](https://github.com/nmwsharp/happly/actions)
+[![actions status windows](https://github.com/nmwsharp/happly/workflows/windows/badge.svg)](https://github.com/nmwsharp/happly/actions)
 
 ## The `.ply` format and hapPLY
 
