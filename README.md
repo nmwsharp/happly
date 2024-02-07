@@ -31,7 +31,7 @@ happly::PLYData plyIn("my_file.ply");
 
 // Get data from the object
 std::vector<float> elementA_prop1 = plyIn.getElement("elementA").getProperty<float>("prop1");
-std::vector<int> elementA_prop2 = plyIn.getElement("elementA").getProperty<double>("prop1");
+std::vector<double> elementA_prop2 = plyIn.getElement("elementA").getProperty<double>("prop1");
 std::vector<std::vector<double>> elementB_listProp = 
     plyIn.getElement("elementB").getListProperty<double>("listprop1");
 
