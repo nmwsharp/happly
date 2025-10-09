@@ -63,9 +63,17 @@ SOFTWARE.
 // General namespace wrapping all Happly things.
 namespace happly {
 
-// Enum specifying binary or ASCII filetypes. Binary can be little-endian
-// (default) or big endian.
-enum class DataFormat { ASCII, Binary, BinaryBigEndian };
+/**
+ * @brief Enum specifying the data format for PLY files.
+ * 
+ * The PLY format supports both ASCII and binary encodings. Binary files can be stored
+ * in either little-endian (default) or big-endian byte order.
+ */
+enum class DataFormat { 
+  ASCII,            ///< ASCII text format
+  Binary,           ///< Binary format with little-endian byte order (default)
+  BinaryBigEndian   ///< Binary format with big-endian byte order
+};
 
 // Type name strings
 // clang-format off
@@ -225,7 +233,7 @@ bool isLittleEndian() {
 /**
  * Swap endianness.
  *
- * @param value Value to swap.
+ * @param val Value to swap.
  *
  * @return Swapped value.
  */
