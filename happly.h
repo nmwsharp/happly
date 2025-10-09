@@ -138,7 +138,7 @@ public:
    *
    * @param capacity Expected number of elements.
    */
-  virtual void reserve(size_t capacity) = 0;
+  virtual void reserve(std::size_t capacity) = 0;
 
   /**
    * @brief (ASCII reading) Parse out the next value of this property from a list of tokens.
@@ -146,7 +146,7 @@ public:
    * @param tokens The list of property tokens for the element.
    * @param currEntry Index in to tokens, updated after this property is read.
    */
-  virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) = 0;
+  virtual void parseNext(const std::vector<std::string>& tokens, std::size_t& currEntry) = 0;
 
   /**
    * @brief (binary reading) Copy the next value of this property from a stream of bits.
@@ -175,7 +175,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataASCII(std::ostream& outStream, size_t iElement) = 0;
+  virtual void writeDataASCII(std::ostream& outStream, std::size_t iElement) = 0;
 
   /**
    * @brief (binary writing) copy the bits of this property for some element to a stream
@@ -183,7 +183,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinary(std::ostream& outStream, size_t iElement) = 0;
+  virtual void writeDataBinary(std::ostream& outStream, std::size_t iElement) = 0;
 
   /**
    * @brief (binary writing) copy the bits of this property for some element to a stream
@@ -191,14 +191,14 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinaryBigEndian(std::ostream& outStream, size_t iElement) = 0;
+  virtual void writeDataBinaryBigEndian(std::ostream& outStream, std::size_t iElement) = 0;
 
   /**
    * @brief Number of element entries for this property
    *
    * @return
    */
-  virtual size_t size() = 0;
+  virtual std::size_t size() = 0;
 
   /**
    * @brief A string naming the type of the property
@@ -391,7 +391,7 @@ public:
    *
    * @return
    */
-  virtual size_t size() override { return data.size(); }
+  std::size_t size() override { return data.size(); }
 
 
   /**
@@ -470,14 +470,14 @@ public:
   virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) override {
 
     std::istringstream iss(tokens[currEntry]);
-    size_t count;
+    std::size_t count;
     iss >> count;
     currEntry++;
 
-    size_t currSize = flattenedData.size();
-    size_t afterSize = currSize + count;
+    const std::size_t currSize = flattenedData.size();
+    std::size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
-    for (size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
+    for (std::size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
       std::istringstream iss(tokens[currEntry]);
       typename SerializeType<T>::type tmp; // usually the same type as T
       iss >> tmp;
@@ -495,12 +495,12 @@ public:
   virtual void readNext(std::istream& stream) override {
 
     // Read the size of the list
-    size_t count = 0;
+    std::size_t count = 0;
     stream.read(((char*)&count), listCountBytes);
 
     // Read list elements
-    size_t currSize = flattenedData.size();
-    size_t afterSize = currSize + count;
+    std::size_t currSize = flattenedData.size();
+    std::size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
     if (count > 0) {
       stream.read((char*)&flattenedData[currSize], count * sizeof(T));
@@ -516,7 +516,7 @@ public:
   virtual void readNextBigEndian(std::istream& stream) override {
 
     // Read the size of the list
-    size_t count = 0;
+    std::size_t count = 0;
     stream.read(((char*)&count), listCountBytes);
     if (listCountBytes == 8) {
       count = (size_t)swapEndian((uint64_t)count);
@@ -527,8 +527,8 @@ public:
     }
 
     // Read list elements
-    size_t currSize = flattenedData.size();
-    size_t afterSize = currSize + count;
+    std::size_t currSize = flattenedData.size();
+    std::size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
     if (count > 0) {
       stream.read((char*)&flattenedData[currSize], count * sizeof(T));
@@ -557,12 +557,12 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataASCII(std::ostream& outStream, size_t iElement) override {
-    size_t dataStart = flattenedIndexStart[iElement];
-    size_t dataEnd = flattenedIndexStart[iElement + 1];
+  void writeDataASCII(std::ostream& outStream, std::size_t iElement) override {
+    std::size_t dataStart = flattenedIndexStart[iElement];
+    std::size_t dataEnd = flattenedIndexStart[iElement + 1];
 
     // Get the number of list elements as a uchar, and ensure the value fits
-    size_t dataCount = dataEnd - dataStart;
+    std::size_t dataCount = dataEnd - dataStart;
     if (dataCount > std::numeric_limits<uint8_t>::max()) {
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
@@ -581,12 +581,12 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinary(std::ostream& outStream, size_t iElement) override {
-    size_t dataStart = flattenedIndexStart[iElement];
-    size_t dataEnd = flattenedIndexStart[iElement + 1];
+  void writeDataBinary(std::ostream& outStream, std::size_t iElement) override {
+    std::size_t dataStart = flattenedIndexStart[iElement];
+    std::size_t dataEnd = flattenedIndexStart[iElement + 1];
 
     // Get the number of list elements as a uchar, and ensure the value fits
-    size_t dataCount = dataEnd - dataStart;
+    std::size_t dataCount = dataEnd - dataStart;
     if (dataCount > std::numeric_limits<uint8_t>::max()) {
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
@@ -608,7 +608,7 @@ public:
     size_t dataEnd = flattenedIndexStart[iElement + 1];
 
     // Get the number of list elements as a uchar, and ensure the value fits
-    size_t dataCount = dataEnd - dataStart;
+    std::size_t dataCount = dataEnd - dataStart;
     if (dataCount > std::numeric_limits<uint8_t>::max()) {
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
@@ -647,7 +647,7 @@ public:
    * @brief Indices in to flattenedData. The i'th element gives the index in to flattenedData where the element's data
    * begins. A final entry is included which is the length of flattenedData. Size is N_elem + 1.
    */
-  std::vector<size_t> flattenedIndexStart;
+  std::vector<std::size_t> flattenedIndexStart{};
 
   /**
    * @brief The number of bytes used to store the count for lists of data.
@@ -787,7 +787,7 @@ public:
   Element(const std::string& name_, size_t count_) : name(name_), count(count_) {}
 
   std::string name;
-  size_t count;
+  std::size_t count;
   std::vector<std::unique_ptr<Property>> properties;
 
   /**
@@ -1235,17 +1235,17 @@ public:
 namespace {
 
 inline std::string trimSpaces(const std::string& input) {
-  size_t start = 0;
+  std::size_t start = 0;
   while (start < input.size() && input[start] == ' ') start++;
-  size_t end = input.size();
+  std::size_t end = input.size();
   while (end > start && (input[end - 1] == ' ' || input[end - 1] == '\n' || input[end - 1] == '\r')) end--;
   return input.substr(start, end - start);
 }
 
 inline std::vector<std::string> tokenSplit(const std::string& input) {
   std::vector<std::string> result;
-  size_t curr = 0;
-  size_t found = 0;
+  std::size_t curr = 0;
+  std::size_t found = 0;
   while ((found = input.find_first_of(' ', curr)) != std::string::npos) {
     std::string token = input.substr(curr, found - curr);
     token = trimSpaces(token);
@@ -1436,7 +1436,7 @@ public:
    * @param name The name of the new element type ("vertices").
    * @param count The number of elements of this type.
    */
-  void addElement(const std::string& name, size_t count) { elements.emplace_back(name, count); }
+  void addElement(const std::string& name, std::size_t count) { elements.emplace_back(name, count); }
 
   // === Common-case helpers
 
@@ -1488,13 +1488,13 @@ public:
   }
 
   /**
-   * @brief Common-case helper to get face indices for a mesh. If not template type is given, size_t is used. Naively
+   * @brief Common-case helper to get face indices for a mesh. If not template type is given, std::size_t is used. Naively
    * converts to requested signedness, which may lead to unexpected values if an unsigned type is used and file contains
    * negative values.
    *
    * @return The indices into the vertex elements for each face. Usually 0-based, though there are no formal rules.
    */
-  template <typename T = size_t>
+  template <typename T = std::size_t>
   std::vector<std::vector<T>> getFaceIndices() {
 
     for (const std::string& f : std::vector<std::string>{"face"}) {
@@ -1580,7 +1580,7 @@ public:
   void addVertexColors(std::vector<std::array<double, 3>>& colors) {
 
     std::string vertexName = "vertex";
-    size_t N = colors.size();
+    std::size_t N = colors.size();
 
     // Create the element
     if (!hasElement(vertexName)) {
@@ -1778,7 +1778,7 @@ private:
         vector<string> tokens = tokenSplit(line);
         if (tokens.size() != 3) throw std::runtime_error("PLY parser: Invalid element line");
         string name = tokens[1];
-        size_t count;
+        std::size_t count;
         std::istringstream iss(tokens[2]);
         iss >> count;
         elements.emplace_back(name, count);
