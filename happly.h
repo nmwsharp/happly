@@ -136,8 +136,8 @@ public:
    *
    * @param name_
    */
-  Property(const std::string& name_) : name(name_){};
-  virtual ~Property(){};
+  explicit Property(const std::string& name_) : name(name_){};
+  virtual ~Property()= default;
 
   std::string name;
 
@@ -289,7 +289,7 @@ public:
    *
    * @param name_
    */
-  TypedProperty(const std::string& name_) : Property(name_) {
+  explicit TypedProperty(const std::string& name_) : Property(name_) {
     if (typeName<T>() == "unknown") {
       // TODO should really be a compile-time error
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
@@ -1294,7 +1294,7 @@ public:
    * @param filename The file to read from.
    * @param verbose If true, print useful info about the file to stdout
    */
-  PLYData(const std::string& filename, bool verbose = false) {
+  explicit PLYData(const std::string& filename, bool verbose = false) {
 
     using std::cout;
     using std::endl;
@@ -1322,7 +1322,7 @@ public:
    * @param inStream The stringstream to read from.
    * @param verbose If true, print useful info about the file to stdout
    */
-  PLYData(std::istream& inStream, bool verbose = false) {
+  explicit PLYData(std::istream& inStream, bool verbose = false) {
 
     using std::cout;
     using std::endl;
