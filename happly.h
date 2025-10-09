@@ -649,7 +649,7 @@ public:
    * @brief The (flattened) data for the property, as formed by concatenating all of the individual element lists
    * together.
    */
-  std::vector<T> flattenedData;
+  std::vector<T> flattenedData{};
 
   /**
    * @brief Indices in to flattenedData. The i'th element gives the index in to flattenedData where the element's data
