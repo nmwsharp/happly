@@ -1556,7 +1556,7 @@ public:
    *
    * @param colors A vector of vertex colors (unsigned chars [0,255]).
    */
-  void addVertexColors(std::vector<std::array<unsigned char, 3>>& colors) {
+  void addVertexColors(const std::vector<std::array<unsigned char, 3>>& colors) {
 
     const std::string vertexName = "vertex";
     const std::size_t N = colors.size();
@@ -1587,7 +1587,7 @@ public:
    *
    * @param colors A vector of vertex colors as floating point [0,1] values. Internally converted to [0,255] chars.
    */
-  void addVertexColors(std::vector<std::array<double, 3>>& colors) {
+  void addVertexColors(const std::vector<std::array<double, 3>>& colors) {
 
     std::string vertexName = "vertex";
     std::size_t N = colors.size();
