@@ -843,6 +843,7 @@ public:
    */
   std::vector<std::string> getPropertyNames() {
     std::vector<std::string> names;
+    names.reserve(properties.size());
     for (std::unique_ptr<Property>& p : properties) {
       names.push_back(p->name);
     }
@@ -1431,6 +1432,7 @@ public:
    */
   std::vector<std::string> getElementNames() {
     std::vector<std::string> names;
+    names.reserve(elements.size());
     for (Element& e : elements) {
       names.push_back(e.name);
     }
