@@ -308,14 +308,14 @@ public:
     }
   };
 
-  virtual ~TypedProperty() override{};
+  ~TypedProperty() override = default;
 
   /**
    * @brief Reserve memory.
    *
    * @param capacity Expected number of elements.
    */
-  virtual void reserve(size_t capacity) override { data.reserve(capacity); }
+  void reserve(std::size_t capacity) override { data.reserve(capacity); }
 
   /**
    * @brief (ASCII reading) Parse out the next value of this property from a list of tokens.
@@ -323,7 +323,7 @@ public:
    * @param tokens The list of property tokens for the element.
    * @param currEntry Index in to tokens, updated after this property is read.
    */
-  virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) override {
+  void parseNext(const std::vector<std::string>& tokens, std::size_t& currEntry) override {
     data.emplace_back();
     std::istringstream iss(tokens[currEntry]);
     typename SerializeType<T>::type tmp; // usually the same type as T
@@ -337,7 +337,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNext(std::istream& stream) override {
+  void readNext(std::istream& stream) override {
     data.emplace_back();
     stream.read((char*)&data.back(), sizeof(T));
   }
@@ -347,7 +347,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNextBigEndian(std::istream& stream) override {
+  void readNextBigEndian(std::istream& stream) override {
     data.emplace_back();
     stream.read((char*)&data.back(), sizeof(T));
     data.back() = swapEndian(data.back());
@@ -358,7 +358,7 @@ public:
    *
    * @param outStream Stream to write to.
    */
-  virtual void writeHeader(std::ostream& outStream) override {
+  void writeHeader(std::ostream& outStream) override {
     outStream << "property " << typeName<T>() << " " << name << "\n";
   }
 
@@ -368,7 +368,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataASCII(std::ostream& outStream, size_t iElement) override {
+  void writeDataASCII(std::ostream& outStream, std::size_t iElement) override {
     outStream.precision(std::numeric_limits<T>::max_digits10);
     outStream << static_cast<typename SerializeType<T>::type>(data[iElement]); // case is usually a no-op
   }
@@ -379,7 +379,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinary(std::ostream& outStream, size_t iElement) override {
+  void writeDataBinary(std::ostream& outStream, std::size_t iElement) override {
     outStream.write((char*)&data[iElement], sizeof(T));
   }
 
@@ -389,7 +389,7 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinaryBigEndian(std::ostream& outStream, size_t iElement) override {
+  void writeDataBinaryBigEndian(std::ostream& outStream, std::size_t iElement) override {
     auto value = swapEndian(data[iElement]);
     outStream.write((char*)&value, sizeof(T));
   }
@@ -407,7 +407,7 @@ public:
    *
    * @return
    */
-  virtual std::string propertyTypeName() override { return typeName<T>(); }
+  std::string propertyTypeName() override { return typeName<T>(); }
 
   /**
    * @brief The actual data contained in the property
@@ -457,14 +457,14 @@ public:
     }
   };
 
-  virtual ~TypedListProperty() override{};
+  ~TypedListProperty() override= default;
 
   /**
    * @brief Reserve memory.
    *
    * @param capacity Expected number of elements.
    */
-  virtual void reserve(size_t capacity) override {
+  void reserve(std::size_t capacity) override {
     flattenedData.reserve(3 * capacity); // optimize for triangle meshes
     flattenedIndexStart.reserve(capacity + 1);
   }
@@ -475,7 +475,7 @@ public:
    * @param tokens The list of property tokens for the element.
    * @param currEntry Index in to tokens, updated after this property is read.
    */
-  virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) override {
+  void parseNext(const std::vector<std::string>& tokens, std::size_t& currEntry) override {
 
     std::istringstream iss(tokens[currEntry]);
     std::size_t count;
@@ -500,7 +500,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNext(std::istream& stream) override {
+  void readNext(std::istream& stream) override {
 
     // Read the size of the list
     std::size_t count = 0;
@@ -521,7 +521,7 @@ public:
    *
    * @param stream Stream to read from.
    */
-  virtual void readNextBigEndian(std::istream& stream) override {
+  void readNextBigEndian(std::istream& stream) override {
 
     // Read the size of the list
     std::size_t count = 0;
@@ -554,7 +554,7 @@ public:
    *
    * @param outStream Stream to write to.
    */
-  virtual void writeHeader(std::ostream& outStream) override {
+  void writeHeader(std::ostream& outStream) override {
     // NOTE: We ALWAYS use uchar as the list count output type
     outStream << "property list uchar " << typeName<T>() << " " << name << "\n";
   }
@@ -611,9 +611,9 @@ public:
    * @param outStream Stream to write to.
    * @param iElement index of the element to write.
    */
-  virtual void writeDataBinaryBigEndian(std::ostream& outStream, size_t iElement) override {
-    size_t dataStart = flattenedIndexStart[iElement];
-    size_t dataEnd = flattenedIndexStart[iElement + 1];
+  void writeDataBinaryBigEndian(std::ostream& outStream, std::size_t iElement) override {
+    std::size_t dataStart = flattenedIndexStart[iElement];
+    std::size_t dataEnd = flattenedIndexStart[iElement + 1];
 
     // Get the number of list elements as a uchar, and ensure the value fits
     std::size_t dataCount = dataEnd - dataStart;
@@ -635,7 +635,7 @@ public:
    *
    * @return
    */
-  virtual size_t size() override { return flattenedIndexStart.size() - 1; }
+  std::size_t size() override { return flattenedIndexStart.size() - 1; }
 
 
   /**
@@ -643,7 +643,7 @@ public:
    *
    * @return
    */
-  virtual std::string propertyTypeName() override { return typeName<T>(); }
+  std::string propertyTypeName() override { return typeName<T>(); }
 
   /**
    * @brief The (flattened) data for the property, as formed by concatenating all of the individual element lists
