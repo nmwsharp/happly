@@ -1258,14 +1258,14 @@ inline std::vector<std::string> tokenSplit(const std::string& input) {
   while ((found = input.find_first_of(' ', curr)) != std::string::npos) {
     std::string token = input.substr(curr, found - curr);
     token = trimSpaces(token);
-    if (token.size() > 0) {
+    if (!token.empty()) {
       result.push_back(token);
     }
     curr = found + 1;
   }
   std::string token = input.substr(curr);
   token = trimSpaces(token);
-  if (token.size() > 0) {
+  if (!token.empty()) {
     result.push_back(token);
   }
 
