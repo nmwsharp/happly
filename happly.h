@@ -88,9 +88,9 @@ template<> inline std::string typeName<float>()             { return "float";   
 template<> inline std::string typeName<double>()            { return "double";  }
 
 // Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
-namespace {
+inline namespace details {
 
-// A pointer for the equivalent/smaller equivalent of a type (eg. when a double is requested a float works too, etc)
+// A pointer for the equivalent/smaller equivalent of a type (e.g. when a double is requested, a float works too, etc)
 // long int is intentionally absent to avoid platform confusion
 template <class T> struct TypeChain                 { bool hasChildType = false;   typedef T            type; };
 template <> struct TypeChain<int64_t>               { bool hasChildType = true;    typedef int32_t      type; };
@@ -216,7 +216,7 @@ public:
   virtual std::string propertyTypeName() = 0;
 };
 
-namespace {
+inline namespace details {
 
 /**
  * Check if the platform is little endian.
@@ -224,7 +224,7 @@ namespace {
  *
  * @return true if little endian
  */
-bool isLittleEndian() {
+inline bool isLittleEndian() {
   int32_t oneVal = 0x1;
   const auto numPtr = reinterpret_cast<char*>(&oneVal);
   return (numPtr[0] == 1);
@@ -247,8 +247,8 @@ T swapEndian(T val) {
 }
 
 // The following specializations for single-byte types are used to avoid compiler warnings.
-template <> int8_t swapEndian<int8_t>(int8_t val) { return val; }
-template <> uint8_t swapEndian<uint8_t>(uint8_t val) { return val; }
+template <> inline int8_t swapEndian<int8_t>(int8_t val) { return val; }
+template <> inline uint8_t swapEndian<uint8_t>(uint8_t val) { return val; }
 
 
 // Unpack flattened list from the convention used in TypedListProperty
@@ -1241,7 +1241,7 @@ public:
 
 
 // Some string helpers
-namespace {
+inline namespace details {
 
 inline std::string trimSpaces(const std::string& input) {
   std::size_t start = 0;
