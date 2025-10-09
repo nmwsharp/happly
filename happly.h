@@ -700,27 +700,27 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 8 bit unsigned
   if (typeStr == "uchar" || typeStr == "uint8") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<uint8_t>(name, listCountBytes));
+      return std::make_unique<TypedListProperty<uint8_t>>(name, listCountBytes);
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<uint8_t>(name));
+      return std::make_unique<TypedProperty<uint8_t>>(name);
     }
   }
 
   // 16 bit unsigned
   else if (typeStr == "ushort" || typeStr == "uint16") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<uint16_t>(name, listCountBytes));
+      return std::make_unique<TypedListProperty<uint16_t>>(name, listCountBytes);
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<uint16_t>(name));
+      return std::make_unique<TypedProperty<uint16_t>>(name);
     }
   }
 
   // 32 bit unsigned
   else if (typeStr == "uint" || typeStr == "uint32") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<uint32_t>(name, listCountBytes));
+      return std::make_unique<TypedListProperty<uint32_t>>(name, listCountBytes);
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<uint32_t>(name));
+      return std::make_unique<TypedProperty<uint32_t>>(name);
     }
   }
 
@@ -729,27 +729,27 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 8 bit signed
   if (typeStr == "char" || typeStr == "int8") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<int8_t>(name, listCountBytes));
+      return std::make_unique<TypedListProperty<int8_t>>(name, listCountBytes);
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<int8_t>(name));
+      return std::make_unique<TypedProperty<int8_t>>(name);
     }
   }
 
   // 16 bit signed
   else if (typeStr == "short" || typeStr == "int16") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<int16_t>(name, listCountBytes));
+      return std::make_unique<TypedListProperty<int16_t>>(name, listCountBytes);
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<int16_t>(name));
+      return std::make_unique<TypedProperty<int16_t>>(name);
     }
   }
 
   // 32 bit signed
   else if (typeStr == "int" || typeStr == "int32") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<int32_t>(name, listCountBytes));
+      return std::make_unique<TypedListProperty<int32_t>>(name, listCountBytes);
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<int32_t>(name));
+      return std::make_unique<TypedProperty<int32_t>>(name);
     }
   }
 
@@ -758,18 +758,18 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 32 bit float
   else if (typeStr == "float" || typeStr == "float32") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<float>(name, listCountBytes));
+      return std::make_unique<TypedListProperty<float>>(name, listCountBytes);
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<float>(name));
+      return std::make_unique<TypedProperty<float>>(name);
     }
   }
 
   // 64 bit float
   else if (typeStr == "double" || typeStr == "float64") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<double>(name, listCountBytes));
+      return std::make_unique<TypedListProperty<double>>(name, listCountBytes);
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<double>(name));
+      return std::make_unique<TypedProperty<double>>(name);
     }
   }
 
