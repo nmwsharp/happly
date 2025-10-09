@@ -1525,7 +1525,7 @@ public:
    *
    * @param vertexPositions A vector of vertex positions
    */
-  void addVertexPositions(std::vector<std::array<double, 3>>& vertexPositions) {
+  void addVertexPositions(const std::vector<std::array<double, 3>>& vertexPositions) {
 
     const std::string vertexName{"vertex"};
     const std::size_t N = vertexPositions.size();
