@@ -226,7 +226,7 @@ namespace {
  */
 bool isLittleEndian() {
   int32_t oneVal = 0x1;
-  const auto numPtr = (char*)&oneVal;
+  const auto numPtr = reinterpret_cast<char*>(&oneVal);
   return (numPtr[0] == 1);
 }
 
@@ -339,7 +339,7 @@ public:
    */
   void readNext(std::istream& stream) override {
     data.emplace_back();
-    stream.read((char*)&data.back(), sizeof(T));
+    stream.read(reinterpret_cast<char*>(&data.back()), sizeof(T));
   }
 
   /**
@@ -349,7 +349,7 @@ public:
    */
   void readNextBigEndian(std::istream& stream) override {
     data.emplace_back();
-    stream.read((char*)&data.back(), sizeof(T));
+    stream.read(reinterpret_cast<char*>(&data.back()), sizeof(T));
     data.back() = swapEndian(data.back());
   }
 
@@ -380,7 +380,7 @@ public:
    * @param iElement index of the element to write.
    */
   void writeDataBinary(std::ostream& outStream, std::size_t iElement) override {
-    outStream.write((char*)&data[iElement], sizeof(T));
+    outStream.write(reinterpret_cast<char*>(&data[iElement]), sizeof(T));
   }
 
   /**
@@ -391,7 +391,7 @@ public:
    */
   void writeDataBinaryBigEndian(std::ostream& outStream, std::size_t iElement) override {
     auto value = swapEndian(data[iElement]);
-    outStream.write((char*)&value, sizeof(T));
+    outStream.write(reinterpret_cast<char*>(&value), sizeof(T));
   }
 
   /**
@@ -504,14 +504,14 @@ public:
 
     // Read the size of the list
     std::size_t count = 0;
-    stream.read(((char*)&count), listCountBytes);
+    stream.read(reinterpret_cast<char*>(&count), listCountBytes);
 
     // Read list elements
     std::size_t currSize = flattenedData.size();
     std::size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
     if (count > 0) {
-      stream.read((char*)&flattenedData[currSize], count * sizeof(T));
+      stream.read(reinterpret_cast<char*>(&flattenedData[currSize]), count * sizeof(T));
     }
     flattenedIndexStart.emplace_back(afterSize);
   }
@@ -525,13 +525,13 @@ public:
 
     // Read the size of the list
     std::size_t count = 0;
-    stream.read(((char*)&count), listCountBytes);
+    stream.read(reinterpret_cast<char*>(&count), listCountBytes);
     if (listCountBytes == 8) {
-      count = (size_t)swapEndian((uint64_t)count);
+      count = static_cast<std::size_t>(swapEndian(static_cast<uint64_t>(count)));
     } else if (listCountBytes == 4) {
-      count = (size_t)swapEndian((uint32_t)count);
+      count = static_cast<std::size_t>(swapEndian(static_cast<uint32_t>(count)));
     } else if (listCountBytes == 2) {
-      count = (size_t)swapEndian((uint16_t)count);
+      count = static_cast<std::size_t>(swapEndian(static_cast<uint16_t>(count)));
     }
 
     // Read list elements
@@ -539,7 +539,7 @@ public:
     std::size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
     if (count > 0) {
-      stream.read((char*)&flattenedData[currSize], count * sizeof(T));
+      stream.read(reinterpret_cast<char*>(&flattenedData[currSize]), count * sizeof(T));
     }
     flattenedIndexStart.emplace_back(afterSize);
 
@@ -601,8 +601,8 @@ public:
     }
     auto count = static_cast<uint8_t>(dataCount);
 
-    outStream.write((char*)&count, sizeof(uint8_t));
-    outStream.write((char*)&flattenedData[dataStart], count * sizeof(T));
+    outStream.write(reinterpret_cast<char*>(&count), sizeof(uint8_t));
+    outStream.write(reinterpret_cast<char*>(&flattenedData[dataStart]), count * sizeof(T));
   }
 
   /**
@@ -623,10 +623,10 @@ public:
     }
     auto count = static_cast<uint8_t>(dataCount);
 
-    outStream.write((char*)&count, sizeof(uint8_t));
+    outStream.write(reinterpret_cast<char*>(&count), sizeof(uint8_t));
     for (std::size_t iFlat = dataStart; iFlat < dataEnd; ++iFlat) {
       T value = swapEndian(flattenedData[iFlat]);
-      outStream.write((char*)&value, sizeof(T));
+      outStream.write(reinterpret_cast<char*>(&value), sizeof(T));
     }
   }
 
