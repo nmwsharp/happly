@@ -792,7 +792,7 @@ public:
    * @param name_ Name of the element type (eg, "vertices")
    * @param count_ Number of instances of this element.
    */
-  Element(const std::string& name_, size_t count_) : name(name_), count(count_) {}
+  Element(const std::string& name_, std::size_t count_) : name(name_), count(count_) {}
 
   std::string name;
   std::size_t count;
@@ -1287,7 +1287,7 @@ public:
   /**
    * @brief Create an empty PLYData object.
    */
-  PLYData(){};
+  PLYData() = default;
 
   /**
    * @brief Initialize a PLYData by reading from a file. Throws if any failures occur.
@@ -2000,7 +2000,7 @@ private:
 
     // Write comments
     bool hasHapplyComment = false;
-    std::string happlyComment = "Written with hapPLY (https://github.com/nmwsharp/happly)";
+    const std::string happlyComment{"Written with hapPLY (https://github.com/nmwsharp/happly)"};
     for (const std::string& comment : comments) {
       if (comment == happlyComment) hasHapplyComment = true;
       outStream << "comment " << comment << "\n";
