@@ -226,7 +226,7 @@ namespace {
  */
 bool isLittleEndian() {
   int32_t oneVal = 0x1;
-  char* numPtr = (char*)&oneVal;
+  const auto numPtr = (char*)&oneVal;
   return (numPtr[0] == 1);
 }
 
@@ -239,7 +239,7 @@ bool isLittleEndian() {
  */
 template <typename T>
 T swapEndian(T val) {
-  char* bytes = reinterpret_cast<char*>(&val);
+  const auto bytes = reinterpret_cast<char*>(&val);
   for (unsigned int i = 0; i < sizeof(val) / 2; i++) {
     std::swap(bytes[sizeof(val) - 1 - i], bytes[i]);
   }
@@ -253,8 +253,8 @@ template <> uint8_t swapEndian<uint8_t>(uint8_t val) { return val; }
 
 // Unpack flattened list from the convention used in TypedListProperty
 template <typename T>
-std::vector<std::vector<T>> unflattenList(const std::vector<T>& flatList, const std::vector<size_t> flatListStarts) {
-  size_t outerCount = flatListStarts.size() - 1;
+std::vector<std::vector<T>> unflattenList(const std::vector<T>& flatList, const std::vector<std::size_t>& flatListStarts) {
+  std::size_t outerCount = flatListStarts.size() - 1;
 
   // Put the output here
   std::vector<std::vector<T>> outLists(outerCount);
@@ -823,8 +823,8 @@ public:
    * @return Whether the target property exists.
    */
   template <class T>
-  bool hasPropertyType(const std::string& target) {
-    for (std::unique_ptr<Property>& prop : properties) {
+  bool hasPropertyType(const std::string& target) const {
+    for (const std::unique_ptr<Property>& prop : properties) {
       if (prop->name == target) {
         TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
         if (castedProp) {
@@ -1059,7 +1059,7 @@ public:
   /**
    * @brief Performs sanity checks on the element, throwing if any fail.
    */
-  void validate() {
+  void validate() const {
 
     // Make sure no properties have duplicate names, and no names have whitespace
     for (std::size_t iP = 0; iP < properties.size(); iP++) {
@@ -1076,9 +1076,9 @@ public:
     }
 
     // Make sure all properties have right length
-    for (size_t iP = 0; iP < properties.size(); iP++) {
-      if (properties[iP]->size() != count) {
-        throw std::runtime_error("Ply validate: property has wrong size. " + properties[iP]->name +
+    for (const auto & property : properties) {
+      if (property->size() != count) {
+        throw std::runtime_error("Ply validate: property has wrong size. " + property->name +
                                  " does not match element size.");
       }
     }
@@ -1104,7 +1104,7 @@ public:
    *
    * @param outStream The stream to write to.
    */
-  void writeDataASCII(std::ostream& outStream) {
+  void writeDataASCII(std::ostream& outStream) const {
     // Question: what is the proper output for an element with no properties? Here, we write a blank line, so there is
     // one line per element no matter what.
     for (std::size_t iE = 0; iE < count; ++iE) {
@@ -1525,8 +1525,8 @@ public:
    */
   void addVertexPositions(std::vector<std::array<double, 3>>& vertexPositions) {
 
-    std::string vertexName = "vertex";
-    size_t N = vertexPositions.size();
+    const std::string vertexName{"vertex"};
+    const std::size_t N = vertexPositions.size();
 
     // Create the element
     if (!hasElement(vertexName)) {
@@ -1556,8 +1556,8 @@ public:
    */
   void addVertexColors(std::vector<std::array<unsigned char, 3>>& colors) {
 
-    std::string vertexName = "vertex";
-    size_t N = colors.size();
+    const std::string vertexName = "vertex";
+    const std::size_t N = colors.size();
 
     // Create the element
     if (!hasElement(vertexName)) {
@@ -1627,8 +1627,8 @@ public:
   template <typename T>
   void addFaceIndices(std::vector<std::vector<T>>& indices) {
 
-    std::string faceName = "face";
-    size_t N = indices.size();
+    const std::string faceName = "face";
+    const std::size_t N = indices.size();
 
     // Create the element
     if (!hasElement(faceName)) {
@@ -1732,9 +1732,9 @@ private:
       std::getline(inStream, styleLine);
       vector<string> tokens = tokenSplit(styleLine);
       if (tokens.size() != 3) throw std::runtime_error("PLY parser: bad format line");
-      std::string formatStr = tokens[0];
-      std::string typeStr = tokens[1];
-      std::string versionStr = tokens[2];
+      const std::string& formatStr = tokens[0];
+      const std::string& typeStr = tokens[1];
+      const std::string& versionStr = tokens[2];
 
       // "format"
       if (formatStr != "format") throw std::runtime_error("PLY parser: bad format line");
@@ -1798,10 +1798,10 @@ private:
       else if (startsWith(line, "property list")) {
         vector<string> tokens = tokenSplit(line);
         if (tokens.size() != 5) throw std::runtime_error("PLY parser: Invalid property list line");
-        if (elements.size() == 0) throw std::runtime_error("PLY parser: Found property list without previous element");
-        string countType = tokens[2];
-        string type = tokens[3];
-        string name = tokens[4];
+        if (elements.empty()) throw std::runtime_error("PLY parser: Found property list without previous element");
+        const string& countType = tokens[2];
+        const string& type = tokens[3];
+        const string& name = tokens[4];
         elements.back().properties.push_back(createPropertyWithType(name, type, true, countType));
         if (verbose)
           cout << "    - Found list property: " << name << " (count type = " << countType << ", data type = " << type
@@ -1813,9 +1813,9 @@ private:
       else if (startsWith(line, "property")) {
         vector<string> tokens = tokenSplit(line);
         if (tokens.size() != 3) throw std::runtime_error("PLY parser: Invalid property line");
-        if (elements.size() == 0) throw std::runtime_error("PLY parser: Found property without previous element");
-        string type = tokens[1];
-        string name = tokens[2];
+        if (elements.empty()) throw std::runtime_error("PLY parser: Found property without previous element");
+        const string& type = tokens[1];
+        const string& name = tokens[2];
         elements.back().properties.push_back(createPropertyWithType(name, type, false, ""));
         if (verbose) cout << "    - Found property: " << name << " (type = " << type << ")" << endl;
         continue;
