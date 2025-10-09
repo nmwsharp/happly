@@ -485,7 +485,7 @@ public:
     const std::size_t currSize = flattenedData.size();
     std::size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
-    for (std::size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
+    for (std::size_t iFlat = currSize; iFlat < afterSize; ++iFlat) {
       std::istringstream iss(tokens[currEntry]);
       typename SerializeType<T>::type tmp; // usually the same type as T
       iss >> tmp;
