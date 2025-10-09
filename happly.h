@@ -599,7 +599,7 @@ public:
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
     }
-    uint8_t count = static_cast<uint8_t>(dataCount);
+    auto count = static_cast<uint8_t>(dataCount);
 
     outStream.write((char*)&count, sizeof(uint8_t));
     outStream.write((char*)&flattenedData[dataStart], count * sizeof(T));
@@ -621,7 +621,7 @@ public:
       throw std::runtime_error(
           "List property has an element with more entries than fit in a uchar. See note in README.");
     }
-    uint8_t count = static_cast<uint8_t>(dataCount);
+    auto count = static_cast<uint8_t>(dataCount);
 
     outStream.write((char*)&count, sizeof(uint8_t));
     for (std::size_t iFlat = dataStart; iFlat < dataEnd; ++iFlat) {
@@ -826,7 +826,7 @@ public:
   bool hasPropertyType(const std::string& target) const {
     for (const std::unique_ptr<Property>& prop : properties) {
       if (prop->name == target) {
-        TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
+        auto* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
         if (castedProp) {
           return true;
         }
@@ -959,7 +959,7 @@ public:
 
     // Find the property
     std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
-    TypedProperty<T>* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
+    auto* castedProp = dynamic_cast<TypedProperty<T>*>(prop.get());
     if (castedProp) {
       return castedProp->data;
     }
@@ -1002,7 +1002,7 @@ public:
 
     // Find the property
     std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
-    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop.get());
+    auto* castedProp = dynamic_cast<TypedListProperty<T>*>(prop.get());
     if (castedProp) {
       return unflattenList(castedProp->flattenedData, castedProp->flattenedIndexStart);
     }
@@ -1165,7 +1165,7 @@ public:
     typedef typename CanonicalName<T>::type Tcan;
 
     { // Try to return data of type D from a property of type T
-      TypedProperty<Tcan>* castedProp = dynamic_cast<TypedProperty<Tcan>*>(prop);
+      auto* castedProp = dynamic_cast<TypedProperty<Tcan>*>(prop);
       if (castedProp) {
         // Succeeded, return a buffer of the data (copy while converting type)
         std::vector<D> castedVec;
@@ -1202,7 +1202,7 @@ public:
   std::vector<std::vector<D>> getDataFromListPropertyRecursive(Property* prop) {
     typedef typename CanonicalName<T>::type Tcan;
 
-    TypedListProperty<Tcan>* castedProp = dynamic_cast<TypedListProperty<Tcan>*>(prop);
+    auto* castedProp = dynamic_cast<TypedListProperty<Tcan>*>(prop);
     if (castedProp) {
       // Succeeded, return a buffer of the data (copy while converting type)
 
@@ -1641,7 +1641,7 @@ public:
     for (std::vector<T>& l : indices) {
       std::vector<IndType> thisInds;
       for (T& val : l) {
-        IndType valConverted = static_cast<IndType>(val);
+        auto valConverted = static_cast<IndType>(val);
         if (valConverted != val) {
           throw std::runtime_error("Index value " + std::to_string(val) +
                                    " could not be converted to a .ply integer without loss of data. Note that .ply "
