@@ -660,7 +660,7 @@ public:
   /**
    * @brief The number of bytes used to store the count for lists of data.
    */
-  int listCountBytes = -1;
+  int listCountBytes{-1};
 };
 
 
