@@ -256,9 +256,9 @@ std::vector<std::vector<T>> unflattenList(const std::vector<T>& flatList, const 
   }
 
   // Copy each sublist
-  for (size_t iOuter = 0; iOuter < outerCount; iOuter++) {
-    size_t iFlatStart = flatListStarts[iOuter];
-    size_t iFlatEnd = flatListStarts[iOuter + 1];
+  for (std::size_t iOuter = 0; iOuter < outerCount; iOuter++) {
+    std::size_t iFlatStart = flatListStarts[iOuter];
+    std::size_t iFlatEnd = flatListStarts[iOuter + 1];
     outLists[iOuter].insert(outLists[iOuter].begin(), flatList.begin() + iFlatStart, flatList.begin() + iFlatEnd);
   }
 
@@ -536,7 +536,7 @@ public:
     flattenedIndexStart.emplace_back(afterSize);
 
     // Swap endian order of list elements
-    for (size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
+    for (std::size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
       flattenedData[iFlat] = swapEndian(flattenedData[iFlat]);
     }
   }
@@ -570,7 +570,7 @@ public:
 
     outStream << dataCount;
     outStream.precision(std::numeric_limits<T>::max_digits10);
-    for (size_t iFlat = dataStart; iFlat < dataEnd; iFlat++) {
+    for (std::size_t iFlat = dataStart; iFlat < dataEnd; ++iFlat) {
       outStream << " " << static_cast<typename SerializeType<T>::type>(flattenedData[iFlat]); // cast is usually a no-op
     }
   }
@@ -616,7 +616,7 @@ public:
     uint8_t count = static_cast<uint8_t>(dataCount);
 
     outStream.write((char*)&count, sizeof(uint8_t));
-    for (size_t iFlat = dataStart; iFlat < dataEnd; iFlat++) {
+    for (std::size_t iFlat = dataStart; iFlat < dataEnd; ++iFlat) {
       T value = swapEndian(flattenedData[iFlat]);
       outStream.write((char*)&value, sizeof(T));
     }
@@ -872,7 +872,7 @@ public:
     }
 
     // If there is already some property with this name, remove it
-    for (size_t i = 0; i < properties.size(); i++) {
+    for (std::size_t i = 0; i < properties.size(); ++i) {
       if (properties[i]->name == propertyName) {
         properties.erase(properties.begin() + i);
         i--;
@@ -901,7 +901,7 @@ public:
     }
 
     // If there is already some property with this name, remove it
-    for (size_t i = 0; i < properties.size(); i++) {
+    for (std::size_t i = 0; i < properties.size(); ++i) {
       if (properties[i]->name == propertyName) {
         properties.erase(properties.begin() + i);
         i--;
@@ -1054,13 +1054,13 @@ public:
   void validate() {
 
     // Make sure no properties have duplicate names, and no names have whitespace
-    for (size_t iP = 0; iP < properties.size(); iP++) {
-      for (char c : properties[iP]->name) {
+    for (std::size_t iP = 0; iP < properties.size(); iP++) {
+      for (const char c : properties[iP]->name) {
         if (std::isspace(c)) {
           throw std::runtime_error("Ply validate: illegal whitespace in name " + properties[iP]->name);
         }
       }
-      for (size_t jP = iP + 1; jP < properties.size(); jP++) {
+      for (std::size_t jP = iP + 1; jP < properties.size(); jP++) {
         if (properties[iP]->name == properties[jP]->name) {
           throw std::runtime_error("Ply validate: multiple properties with name " + properties[iP]->name);
         }
@@ -1099,8 +1099,8 @@ public:
   void writeDataASCII(std::ostream& outStream) {
     // Question: what is the proper output for an element with no properties? Here, we write a blank line, so there is
     // one line per element no matter what.
-    for (size_t iE = 0; iE < count; iE++) {
-      for (size_t iP = 0; iP < properties.size(); iP++) {
+    for (std::size_t iE = 0; iE < count; ++iE) {
+      for (std::size_t iP = 0; iP < properties.size(); ++iP) {
         properties[iP]->writeDataASCII(outStream, iE);
         if (iP < properties.size() - 1) {
           outStream << " ";
@@ -1117,10 +1117,10 @@ public:
    *
    * @param outStream The stream to write to.
    */
-  void writeDataBinary(std::ostream& outStream) {
-    for (size_t iE = 0; iE < count; iE++) {
-      for (size_t iP = 0; iP < properties.size(); iP++) {
-        properties[iP]->writeDataBinary(outStream, iE);
+  void writeDataBinary(std::ostream& outStream) const {
+    for (std::size_t iE = 0; iE < count; ++iE) {
+      for (const auto & property : properties) {
+        property->writeDataBinary(outStream, iE);
       }
     }
   }
@@ -1132,10 +1132,10 @@ public:
    *
    * @param outStream The stream to write to.
    */
-  void writeDataBinaryBigEndian(std::ostream& outStream) {
-    for (size_t iE = 0; iE < count; iE++) {
-      for (size_t iP = 0; iP < properties.size(); iP++) {
-        properties[iP]->writeDataBinaryBigEndian(outStream, iE);
+  void writeDataBinaryBigEndian(std::ostream& outStream) const {
+    for (std::size_t iE = 0; iE < count; ++iE) {
+      for (const auto & property : properties) {
+        property->writeDataBinaryBigEndian(outStream, iE);
       }
     }
   }
@@ -1333,13 +1333,13 @@ public:
    */
   void validate() {
 
-    for (size_t iE = 0; iE < elements.size(); iE++) {
+    for (std::size_t iE = 0; iE < elements.size(); ++iE) {
       for (char c : elements[iE].name) {
         if (std::isspace(c)) {
           throw std::runtime_error("Ply validate: illegal whitespace in element name " + elements[iE].name);
         }
       }
-      for (size_t jE = iE + 1; jE < elements.size(); jE++) {
+      for (std::size_t jE = iE + 1; jE < elements.size(); ++jE) {
         if (elements[iE].name == elements[jE].name) {
           throw std::runtime_error("Ply validate: duplcate element name " + elements[iE].name);
         }
@@ -1455,7 +1455,7 @@ public:
     std::vector<double> zPos = getElement(vertexElementName).getProperty<double>("z");
 
     std::vector<std::array<double, 3>> result(xPos.size());
-    for (size_t i = 0; i < result.size(); i++) {
+    for (std::size_t i = 0; i < result.size(); ++i) {
       result[i][0] = xPos[i];
       result[i][1] = yPos[i];
       result[i][2] = zPos[i];
@@ -1478,7 +1478,7 @@ public:
     std::vector<unsigned char> b = getElement(vertexElementName).getProperty<unsigned char>("blue");
 
     std::vector<std::array<unsigned char, 3>> result(r.size());
-    for (size_t i = 0; i < result.size(); i++) {
+    for (std::size_t i = 0; i < result.size(); ++i) {
       result[i][0] = r[i];
       result[i][1] = g[i];
       result[i][2] = b[i];
@@ -1529,7 +1529,7 @@ public:
     std::vector<double> xPos(N);
     std::vector<double> yPos(N);
     std::vector<double> zPos(N);
-    for (size_t i = 0; i < vertexPositions.size(); i++) {
+    for (std::size_t i = 0; i < vertexPositions.size(); ++i) {
       xPos[i] = vertexPositions[i][0];
       yPos[i] = vertexPositions[i][1];
       zPos[i] = vertexPositions[i][2];
@@ -1560,7 +1560,7 @@ public:
     std::vector<unsigned char> r(N);
     std::vector<unsigned char> g(N);
     std::vector<unsigned char> b(N);
-    for (size_t i = 0; i < colors.size(); i++) {
+    for (std::size_t i = 0; i < colors.size(); ++i) {
       r[i] = colors[i][0];
       g[i] = colors[i][1];
       b[i] = colors[i][2];
@@ -1597,7 +1597,7 @@ public:
     std::vector<unsigned char> r(N);
     std::vector<unsigned char> g(N);
     std::vector<unsigned char> b(N);
-    for (size_t i = 0; i < colors.size(); i++) {
+    for (std::size_t i = 0; i < colors.size(); ++i) {
       r[i] = toChar(colors[i][0]);
       g[i] = toChar(colors[i][1]);
       b[i] = toChar(colors[i][2]);
@@ -1843,10 +1843,10 @@ private:
         std::cout << "  - Processing element: " << elem.name << std::endl;
       }
 
-      for (size_t iP = 0; iP < elem.properties.size(); iP++) {
+      for (std::size_t iP = 0; iP < elem.properties.size(); ++iP) {
         elem.properties[iP]->reserve(elem.count);
       }
-      for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
+      for (std::size_t iEntry = 0; iEntry < elem.count; ++iEntry) {
 
         string line;
         std::getline(inStream, line);
@@ -1860,9 +1860,9 @@ private:
         }
 
         vector<string> tokens = tokenSplit(line);
-        size_t iTok = 0;
-        for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-          elem.properties[iP]->parseNext(tokens, iTok);
+        std::size_t iTok = 0;
+        for (const auto & property : elem.properties) {
+          property->parseNext(tokens, iTok);
         }
       }
     }
@@ -1890,12 +1890,12 @@ private:
         std::cout << "  - Processing element: " << elem.name << std::endl;
       }
 
-      for (size_t iP = 0; iP < elem.properties.size(); iP++) {
+      for (std::size_t iP = 0; iP < elem.properties.size(); ++iP) {
         elem.properties[iP]->reserve(elem.count);
       }
-      for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
-        for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-          elem.properties[iP]->readNext(inStream);
+      for (std::size_t iEntry = 0; iEntry < elem.count; ++iEntry) {
+        for (const auto & property : elem.properties) {
+          property->readNext(inStream);
         }
       }
     }
@@ -1923,12 +1923,12 @@ private:
         std::cout << "  - Processing element: " << elem.name << std::endl;
       }
 
-      for (size_t iP = 0; iP < elem.properties.size(); iP++) {
+      for (std::size_t iP = 0; iP < elem.properties.size(); ++iP) {
         elem.properties[iP]->reserve(elem.count);
       }
-      for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
-        for (size_t iP = 0; iP < elem.properties.size(); iP++) {
-          elem.properties[iP]->readNextBigEndian(inStream);
+      for (std::size_t iEntry = 0; iEntry < elem.count; ++iEntry) {
+        for (const auto & property : elem.properties) {
+          property->readNextBigEndian(inStream);
         }
       }
     }
