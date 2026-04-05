@@ -1759,6 +1759,8 @@ private:
 
       // Parse a comment
       if (startsWith(line, "comment")) {
+        // Skip the comment if it's empty
+        if (line.length() <= 8) continue;
         string comment = line.substr(8);
         if (verbose) cout << "  - Comment: " << comment << endl;
         comments.push_back(comment);
@@ -1767,6 +1769,8 @@ private:
 
       // Parse an obj_info comment
       if (startsWith(line, "obj_info")) {
+        // Skip the comment if it's empty
+        if (line.length() <= 9) continue;
         string infoComment = line.substr(9);
         if (verbose) cout << "  - obj_info: " << infoComment << endl;
         objInfoComments.push_back(infoComment);
