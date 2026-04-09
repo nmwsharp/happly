@@ -412,7 +412,7 @@ public:
 /**
  * @brief A property which is a list of value (eg, 3 doubles). Note that lists are always variable length per-element.
  */
-template <class T>
+template <class T, typename SizeT>
 class TypedListProperty : public Property {
 
 public:
@@ -421,9 +421,16 @@ public:
    *
    * @param name_
    */
-  TypedListProperty(const std::string& name_, int listCountBytes_) : Property(name_), listCountBytes(listCountBytes_) {
+  TypedListProperty(const std::string& name_) : Property(name_) {
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
+    }
+    if (typeName<SizeT>() == "unknown") {
+      throw std::runtime_error("Attempted size type does not match any type defined by the .ply format.");
+    } else if(typeName<SizeT>() != typeName<uint8_t>() &&
+              typeName<SizeT>() != typeName<uint16_t>() &&
+              typeName<SizeT>() != typeName<uint32_t>()) {
+      throw std::runtime_error("List property size must be an unsigned integer type.");
     }
 
     flattenedIndexStart.push_back(0);
@@ -439,14 +446,29 @@ public:
     if (typeName<T>() == "unknown") {
       throw std::runtime_error("Attempted property type does not match any type defined by the .ply format.");
     }
+    if (typeName<SizeT>() == "unknown") {
+      throw std::runtime_error("Attempted size type does not match any type defined by the .ply format.");
+    } else if(typeName<SizeT>() != typeName<uint8_t>() &&
+              typeName<SizeT>() != typeName<uint16_t>() &&
+              typeName<SizeT>() != typeName<uint32_t>()) {
+      throw std::runtime_error("List property size must be an unsigned integer type.");
+    }
 
+    size_t maxCount = 0;
     // Populate list with data
     flattenedIndexStart.push_back(0);
     for (const std::vector<T>& vec : data_) {
       for (const T& val : vec) {
         flattenedData.emplace_back(val);
       }
+      if(vec.size() > maxCount)
+        maxCount = vec.size();
       flattenedIndexStart.push_back(flattenedData.size());
+    }
+
+    if(maxCount > std::numeric_limits<SizeT>::max()) {
+      throw std::runtime_error(
+        "List property has an element with more entries than fit in the size type.");
     }
   };
 
@@ -497,7 +519,7 @@ public:
 
     // Read the size of the list
     size_t count = 0;
-    stream.read(((char*)&count), listCountBytes);
+    stream.read(((char*)&count), sizeof(SizeT));
 
     // Read list elements
     size_t currSize = flattenedData.size();
@@ -518,14 +540,8 @@ public:
 
     // Read the size of the list
     size_t count = 0;
-    stream.read(((char*)&count), listCountBytes);
-    if (listCountBytes == 8) {
-      count = (size_t)swapEndian((uint64_t)count);
-    } else if (listCountBytes == 4) {
-      count = (size_t)swapEndian((uint32_t)count);
-    } else if (listCountBytes == 2) {
-      count = (size_t)swapEndian((uint16_t)count);
-    }
+    stream.read(((char*)&count), sizeof(SizeT));
+    count = (size_t)swapEndian(static_cast<SizeT>(count));
 
     // Read list elements
     size_t currSize = flattenedData.size();
@@ -543,13 +559,12 @@ public:
   }
 
   /**
-   * @brief (reading) Write a header entry for this property. Note that we already use "uchar" for the list count type.
+   * @brief (reading) Write a header entry for this property.
    *
    * @param outStream Stream to write to.
    */
   virtual void writeHeader(std::ostream& outStream) override {
-    // NOTE: We ALWAYS use uchar as the list count output type
-    outStream << "property list uchar " << typeName<T>() << " " << name << "\n";
+    outStream << "property list " << typeName<SizeT>() << " " << typeName<T>() << " " << name << "\n";
   }
 
   /**
@@ -562,13 +577,7 @@ public:
     size_t dataStart = flattenedIndexStart[iElement];
     size_t dataEnd = flattenedIndexStart[iElement + 1];
 
-    // Get the number of list elements as a uchar, and ensure the value fits
     size_t dataCount = dataEnd - dataStart;
-    if (dataCount > std::numeric_limits<uint8_t>::max()) {
-      throw std::runtime_error(
-          "List property has an element with more entries than fit in a uchar. See note in README.");
-    }
-
     outStream << dataCount;
     outStream.precision(std::numeric_limits<T>::max_digits10);
     for (size_t iFlat = dataStart; iFlat < dataEnd; iFlat++) {
@@ -586,16 +595,10 @@ public:
     size_t dataStart = flattenedIndexStart[iElement];
     size_t dataEnd = flattenedIndexStart[iElement + 1];
 
-    // Get the number of list elements as a uchar, and ensure the value fits
     size_t dataCount = dataEnd - dataStart;
-    if (dataCount > std::numeric_limits<uint8_t>::max()) {
-      throw std::runtime_error(
-          "List property has an element with more entries than fit in a uchar. See note in README.");
-    }
-    uint8_t count = static_cast<uint8_t>(dataCount);
-
-    outStream.write((char*)&count, sizeof(uint8_t));
-    outStream.write((char*)&flattenedData[dataStart], count * sizeof(T));
+    SizeT count = static_cast<SizeT>(dataCount);
+    outStream.write((char*)&count, sizeof(SizeT));
+    outStream.write((char*)&flattenedData[dataStart], dataCount * sizeof(T));
   }
 
   /**
@@ -608,15 +611,10 @@ public:
     size_t dataStart = flattenedIndexStart[iElement];
     size_t dataEnd = flattenedIndexStart[iElement + 1];
 
-    // Get the number of list elements as a uchar, and ensure the value fits
     size_t dataCount = dataEnd - dataStart;
-    if (dataCount > std::numeric_limits<uint8_t>::max()) {
-      throw std::runtime_error(
-          "List property has an element with more entries than fit in a uchar. See note in README.");
-    }
-    uint8_t count = static_cast<uint8_t>(dataCount);
+    SizeT count = swapEndian(static_cast<SizeT>(dataCount));
+    outStream.write((char*)&count, sizeof(SizeT));
 
-    outStream.write((char*)&count, sizeof(uint8_t));
     for (size_t iFlat = dataStart; iFlat < dataEnd; iFlat++) {
       T value = swapEndian(flattenedData[iFlat]);
       outStream.write((char*)&value, sizeof(T));
@@ -649,11 +647,6 @@ public:
    * begins. A final entry is included which is the length of flattenedData. Size is N_elem + 1.
    */
   std::vector<size_t> flattenedIndexStart;
-
-  /**
-   * @brief The number of bytes used to store the count for lists of data.
-   */
-  int listCountBytes = -1;
 };
 
 
@@ -693,7 +686,13 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 8 bit unsigned
   if (typeStr == "uchar" || typeStr == "uint8") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<uint8_t>(name, listCountBytes));
+      if(listCountBytes == 1) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint8_t, uint8_t>(name));
+      } else if(listCountBytes == 2) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint8_t, uint16_t>(name));
+      } else if(listCountBytes == 4) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint8_t, uint32_t>(name));
+      }
     } else {
       return std::unique_ptr<Property>(new TypedProperty<uint8_t>(name));
     }
@@ -702,7 +701,13 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 16 bit unsigned
   else if (typeStr == "ushort" || typeStr == "uint16") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<uint16_t>(name, listCountBytes));
+      if(listCountBytes == 1) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint16_t, uint8_t>(name));
+      } else if(listCountBytes == 2) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint16_t, uint16_t>(name));
+      } else if(listCountBytes == 4) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint16_t, uint32_t>(name));
+      }
     } else {
       return std::unique_ptr<Property>(new TypedProperty<uint16_t>(name));
     }
@@ -711,7 +716,13 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 32 bit unsigned
   else if (typeStr == "uint" || typeStr == "uint32") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<uint32_t>(name, listCountBytes));
+      if(listCountBytes == 1) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint32_t, uint8_t>(name));
+      } else if(listCountBytes == 2) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint32_t, uint16_t>(name));
+      } else if(listCountBytes == 4) {
+        return std::unique_ptr<Property>(new TypedListProperty<uint32_t, uint32_t>(name));
+      }
     } else {
       return std::unique_ptr<Property>(new TypedProperty<uint32_t>(name));
     }
@@ -722,7 +733,13 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 8 bit signed
   if (typeStr == "char" || typeStr == "int8") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<int8_t>(name, listCountBytes));
+      if(listCountBytes == 1) {
+        return std::unique_ptr<Property>(new TypedListProperty<int8_t, uint8_t>(name));
+      } else if(listCountBytes == 2) {
+        return std::unique_ptr<Property>(new TypedListProperty<int8_t, uint16_t>(name));
+      } else if(listCountBytes == 4) {
+        return std::unique_ptr<Property>(new TypedListProperty<int8_t, uint32_t>(name));
+      }
     } else {
       return std::unique_ptr<Property>(new TypedProperty<int8_t>(name));
     }
@@ -731,7 +748,13 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 16 bit signed
   else if (typeStr == "short" || typeStr == "int16") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<int16_t>(name, listCountBytes));
+      if(listCountBytes == 1) {
+        return std::unique_ptr<Property>(new TypedListProperty<int16_t, uint8_t>(name));
+      } else if(listCountBytes == 2) {
+        return std::unique_ptr<Property>(new TypedListProperty<int16_t, uint16_t>(name));
+      } else if(listCountBytes == 4) {
+        return std::unique_ptr<Property>(new TypedListProperty<int16_t, uint32_t>(name));
+      }
     } else {
       return std::unique_ptr<Property>(new TypedProperty<int16_t>(name));
     }
@@ -740,7 +763,13 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 32 bit signed
   else if (typeStr == "int" || typeStr == "int32") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<int32_t>(name, listCountBytes));
+      if(listCountBytes == 1) {
+        return std::unique_ptr<Property>(new TypedListProperty<int32_t, uint8_t>(name));
+      } else if(listCountBytes == 2) {
+        return std::unique_ptr<Property>(new TypedListProperty<int32_t, uint16_t>(name));
+      } else if(listCountBytes == 4) {
+        return std::unique_ptr<Property>(new TypedListProperty<int32_t, uint32_t>(name));
+      }
     } else {
       return std::unique_ptr<Property>(new TypedProperty<int32_t>(name));
     }
@@ -751,7 +780,13 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 32 bit float
   else if (typeStr == "float" || typeStr == "float32") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<float>(name, listCountBytes));
+      if(listCountBytes == 1) {
+        return std::unique_ptr<Property>(new TypedListProperty<float, uint8_t>(name));
+      } else if(listCountBytes == 2) {
+        return std::unique_ptr<Property>(new TypedListProperty<float, uint16_t>(name));
+      } else if(listCountBytes == 4) {
+        return std::unique_ptr<Property>(new TypedListProperty<float, uint32_t>(name));
+      }
     } else {
       return std::unique_ptr<Property>(new TypedProperty<float>(name));
     }
@@ -760,15 +795,19 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   // 64 bit float
   else if (typeStr == "double" || typeStr == "float64") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<double>(name, listCountBytes));
+      if(listCountBytes == 1) {
+        return std::unique_ptr<Property>(new TypedListProperty<double, uint8_t>(name));
+      } else if(listCountBytes == 2) {
+        return std::unique_ptr<Property>(new TypedListProperty<double, uint16_t>(name));
+      } else if(listCountBytes == 4) {
+        return std::unique_ptr<Property>(new TypedListProperty<double, uint32_t>(name));
+      }
     } else {
       return std::unique_ptr<Property>(new TypedProperty<double>(name));
     }
   }
 
-  else {
-    throw std::runtime_error("Data type: " + typeStr + " cannot be mapped to .ply format");
-  }
+  throw std::runtime_error("Data type: " + typeStr + " cannot be mapped to .ply format");
 }
 
 /**
@@ -888,7 +927,7 @@ public:
   }
 
   /**
-   * @brief Add a new list property for this element type.
+   * @brief Add a new list property for this element type. Uses an 8-bit list size.
    *
    * @tparam T The type of the property (eg, "double" for a list of doubles)
    * @param propertyName The name of the property
@@ -916,7 +955,54 @@ public:
     }
 
     properties.push_back(std::unique_ptr<Property>(
-        new TypedListProperty<typename CanonicalName<T>::type>(propertyName, canonicalListVec)));
+        new TypedListProperty<typename CanonicalName<T>::type, uint8_t>(propertyName, canonicalListVec)));
+  }
+
+  /**
+   * @brief Add a new list property for this element type.
+   *        Uses the smallest list size type that will contain all of the elements.
+   *
+   * @tparam T The type of the property (eg, "double" for a list of doubles)
+   * @param propertyName The name of the property
+   * @param data The data for the property. Outer vector must have the same length as the number of elements.
+   */
+  template <class T>
+  void addSizedListProperty(const std::string& propertyName, const std::vector<std::vector<T>>& data) {
+
+    if (data.size() != count) {
+      throw std::runtime_error("PLY write: new property " + propertyName + " has size which does not match element");
+    }
+
+    // If there is already some property with this name, remove it
+    for (size_t i = 0; i < properties.size(); i++) {
+      if (properties[i]->name == propertyName) {
+        properties.erase(properties.begin() + i);
+        i--;
+      }
+    }
+
+    // Copy to canonical type. Often a no-op, but takes care of standardizing widths across platforms.
+    size_t maxCount = 0;
+    std::vector<std::vector<typename CanonicalName<T>::type>> canonicalListVec;
+    for (const std::vector<T>& subList : data) {
+      canonicalListVec.emplace_back(subList.begin(), subList.end());
+      if(subList.size() > maxCount)
+        maxCount = subList.size();
+    }
+
+    if(maxCount > std::numeric_limits<uint32_t>::max()) {
+      throw std::runtime_error(
+        "List property has an element with more entries than fit in a uint32.");
+    } else if(maxCount > std::numeric_limits<uint16_t>::max()) {
+      properties.push_back(std::unique_ptr<Property>(
+          new TypedListProperty<typename CanonicalName<T>::type, uint32_t>(propertyName, canonicalListVec)));
+    } else if(maxCount > std::numeric_limits<uint8_t>::max()) {
+      properties.push_back(std::unique_ptr<Property>(
+          new TypedListProperty<typename CanonicalName<T>::type, uint16_t>(propertyName, canonicalListVec)));
+    } else {
+      properties.push_back(std::unique_ptr<Property>(
+          new TypedListProperty<typename CanonicalName<T>::type, uint8_t>(propertyName, canonicalListVec)));
+    }
   }
 
   /**
@@ -995,9 +1081,17 @@ public:
 
     // Find the property
     std::unique_ptr<Property>& prop = getPropertyPtr(propertyName);
-    TypedListProperty<T>* castedProp = dynamic_cast<TypedListProperty<T>*>(prop.get());
-    if (castedProp) {
-      return unflattenList(castedProp->flattenedData, castedProp->flattenedIndexStart);
+    TypedListProperty<T, uint8_t>* castedProp8 = dynamic_cast<TypedListProperty<T, uint8_t>*>(prop.get());
+    if (castedProp8) {
+      return unflattenList(castedProp8->flattenedData, castedProp8->flattenedIndexStart);
+    }
+    TypedListProperty<T, uint16_t>* castedProp16 = dynamic_cast<TypedListProperty<T, uint16_t>*>(prop.get());
+    if (castedProp16) {
+      return unflattenList(castedProp16->flattenedData, castedProp16->flattenedIndexStart);
+    }
+    TypedListProperty<T, uint32_t>* castedProp32 = dynamic_cast<TypedListProperty<T, uint32_t>*>(prop.get());
+    if (castedProp32) {
+      return unflattenList(castedProp32->flattenedData, castedProp32->flattenedIndexStart);
     }
 
     // No match, failure
@@ -1180,6 +1274,37 @@ public:
     }
   }
 
+  /** @brief Helper function which returns a buffer of the data from a sized list property.
+   *
+   * @tparam D The desired output type
+   * @tparam T The actual type of the property
+   * @tparam SizeT The size type of the list property
+   * @param castedProp The property to get
+   *
+   * @return The data, with the requested type
+   */
+  template<class D, class T, typename SizeT>
+  std::vector<std::vector<D>> getBufferFromSizedListProperty(TypedListProperty<T, SizeT> &castedProp)
+  {
+    // Convert to flat buffer of new type
+    std::vector<D>* castedFlatVec = nullptr;
+    std::vector<D> castedFlatVecCopy; // we _might_ make a copy here, depending on is_same below
+
+    if (std::is_same<std::vector<D>, std::vector<T>>::value) {
+      // just use the array we already have
+      castedFlatVec = addressIfSame<std::vector<D>>(castedProp.flattenedData, 0 /* dummy arg to disambiguate */);
+    } else {
+      // make a copy
+      castedFlatVecCopy.reserve(castedProp.flattenedData.size());
+      for (T& v : castedProp.flattenedData) {
+        castedFlatVecCopy.push_back(static_cast<D>(v));
+      }
+      castedFlatVec = &castedFlatVecCopy;
+    }
+
+    // Unflatten and return
+    return unflattenList(*castedFlatVec, castedProp.flattenedIndexStart);
+  }
 
   /**
    * @brief Helper function which does the hard work to implement type promotion for list data getters. Throws if type
@@ -1195,30 +1320,20 @@ public:
   std::vector<std::vector<D>> getDataFromListPropertyRecursive(Property* prop) {
     typedef typename CanonicalName<T>::type Tcan;
 
-    TypedListProperty<Tcan>* castedProp = dynamic_cast<TypedListProperty<Tcan>*>(prop);
-    if (castedProp) {
-      // Succeeded, return a buffer of the data (copy while converting type)
-
-      // Convert to flat buffer of new type
-      std::vector<D>* castedFlatVec = nullptr;
-      std::vector<D> castedFlatVecCopy; // we _might_ make a copy here, depending on is_same below
-
-      if (std::is_same<std::vector<D>, std::vector<Tcan>>::value) {
-        // just use the array we already have
-        castedFlatVec = addressIfSame<std::vector<D>>(castedProp->flattenedData, 0 /* dummy arg to disambiguate */);
-      } else {
-        // make a copy
-        castedFlatVecCopy.reserve(castedProp->flattenedData.size());
-        for (Tcan& v : castedProp->flattenedData) {
-          castedFlatVecCopy.push_back(static_cast<D>(v));
-        }
-        castedFlatVec = &castedFlatVecCopy;
-      }
-
-      // Unflatten and return
-      return unflattenList(*castedFlatVec, castedProp->flattenedIndexStart);
+    TypedListProperty<Tcan, uint8_t>* castedProp8 = dynamic_cast<TypedListProperty<Tcan, uint8_t>*>(prop);
+    if (castedProp8) {
+      return getBufferFromSizedListProperty<D,Tcan,uint8_t>(*castedProp8);
+    }
+    TypedListProperty<Tcan, uint16_t>* castedProp16 = dynamic_cast<TypedListProperty<Tcan, uint16_t>*>(prop);
+    if (castedProp16) {
+      return getBufferFromSizedListProperty<D,Tcan,uint16_t>(*castedProp16);
+    }
+    TypedListProperty<Tcan, uint32_t>* castedProp32 = dynamic_cast<TypedListProperty<Tcan, uint32_t>*>(prop);
+    if (castedProp32) {
+      return getBufferFromSizedListProperty<D,Tcan,uint32_t>(*castedProp32);
     }
 
+    // not present in any size, try the next smaller type
     TypeChain<Tcan> chainType;
     if (chainType.hasChildType) {
       return getDataFromListPropertyRecursive<D, typename TypeChain<Tcan>::type>(prop);
