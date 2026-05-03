@@ -317,6 +317,9 @@ public:
    * @param currEntry Index in to tokens, updated after this property is read.
    */
   virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) override {
+    if (currEntry >= tokens.size()) {
+      throw std::runtime_error("PLY parser: missing token for property");
+    }
     data.emplace_back();
     std::istringstream iss(tokens[currEntry]);
     typename SerializeType<T>::type tmp; // usually the same type as T
@@ -469,7 +472,9 @@ public:
    * @param currEntry Index in to tokens, updated after this property is read.
    */
   virtual void parseNext(const std::vector<std::string>& tokens, size_t& currEntry) override {
-
+    if (currEntry >= tokens.size()) {
+      throw std::runtime_error("PLY parser: missing token for property");
+    }
     std::istringstream iss(tokens[currEntry]);
     size_t count;
     iss >> count;
@@ -479,6 +484,9 @@ public:
     size_t afterSize = currSize + count;
     flattenedData.resize(afterSize);
     for (size_t iFlat = currSize; iFlat < afterSize; iFlat++) {
+      if (currEntry >= tokens.size()) {
+        throw std::runtime_error("PLY parser: missing token for property");
+      }
       std::istringstream iss(tokens[currEntry]);
       typename SerializeType<T>::type tmp; // usually the same type as T
       iss >> tmp;
