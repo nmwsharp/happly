@@ -1854,13 +1854,17 @@ private:
       for (size_t iEntry = 0; iEntry < elem.count; iEntry++) {
 
         string line;
-        std::getline(inStream, line);
+        if (!std::getline(inStream, line)) {
+          throw std::runtime_error("PLY parser: unexpected end of file");
+        }
 
         // Some .ply files seem to include empty lines before the start of property data (though this is not specified
         // in the format description). We attempt to recover and parse such files by skipping any empty lines.
         if (!elem.properties.empty()) { // if the element has no properties, the line _should_ be blank, presumably
           while (line.empty()) { // skip lines until we hit something nonempty
-            std::getline(inStream, line);
+            if (!std::getline(inStream, line)) {
+              throw std::runtime_error("PLY parser: unexpected end of file");
+            }
           }
         }
 
