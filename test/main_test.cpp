@@ -4,6 +4,10 @@
 #include <string>
 #include <chrono>
 #include <random>
+#ifdef HAS_BOOST
+#include <boost/multiprecision/cpp_int.hpp>
+using namespace boost::multiprecision;
+#endif
 
 #include "gtest/gtest.h"
 
@@ -1141,13 +1145,15 @@ TEST(TypePromotionTest, FaceIndSign) {
   EXPECT_NE(faceIndsU, faceIndGetU);
 }
 
+#ifdef HAS_BOOST
 TEST(TypePromotionTest, FaceIndThrow) {
 
   happly::PLYData ply;
   ply.addElement("face", 3);
-  std::vector<std::vector<uint64_t>> faceInds{{1, 3, 1LL << 40}, {0, 2, 4, 5}, {1, 1, 1}};
+  std::vector<std::vector<uint128_t>> faceInds{{1, 3, 1LL << 40}, {0, 2, 4, 5}, {1, 1, 1}};
   EXPECT_THROW(ply.getElement("face").addListProperty("vertex_indices", faceInds), std::runtime_error);
 }
+#endif
 
 // === Test reading mesh-like files
 TEST(MeshTest, ReadWriteASCIIMesh) {
