@@ -8,7 +8,6 @@ cmake_policy(SET CMP0054 NEW)   # don't implicitly dereference inside if()
 ### Configure output locations
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 ### Compile options
 
@@ -85,13 +84,31 @@ set_property(TARGET gtest PROPERTY CXX_STANDARD 14)
 # Test executable
 add_executable(ply-test
                main_test.cpp
+               other.cpp
               )
 
 target_link_libraries(ply-test gtest)
 
 target_include_directories(ply-test PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
+# Test executable (no-rtti)
+add_executable(ply-test-no-rtti
+               main_test.cpp
+               other.cpp
+              )
+
+target_link_libraries(ply-test-no-rtti gtest)
+
+target_include_directories(ply-test-no-rtti PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+if(MSVC)
+    target_compile_options(ply-test-no-rtti PUBLIC /GR-)
+else()
+    target_compile_options(ply-test-no-rtti PUBLIC -fno-rtti)
+endif()
+
 # Add cmake test target  ("make test")
 enable_testing()
 add_test(MainTest ply-test)
+add_test(MainTest-NoRTTI ply-test-no-rtti)
 
